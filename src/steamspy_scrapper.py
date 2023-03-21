@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import requests
 import asyncio
 import aiohttp
 import csv
@@ -7,13 +8,16 @@ import time
 
 # Constants
 OUTPUT_FOLDER = "output"
-PATH_CSV_APP_LIST = OUTPUT_FOLDER + "/app_list.csv"
+PATH_CSV_APP_LIST = OUTPUT_FOLDER + "/steam_app_list.csv"
 PATH_CSV_APP_DATA = OUTPUT_FOLDER + "/steam_app_data.csv"
 DEBUG_APP_QUANTITY = 1000
 DEBUG_START_INDEX = 27500
+API_STEAM_APP_LIST_URL = 'https://api.steampowered.com/ISteamApps/GetAppList/v2/'
 API_BASE_URL = 'https://steamspy.com/api.php'
 BATCH_SIZE = 1000
 WAIT_TIME = 5
+
+ALL_APPS_LIST_COLUMNS = ['appid', 'name']
 
 STEAMSPY_COLUMNS = [
         'appid', 'name', 'developer', 'publisher', 'score_rank', 'owners',
@@ -24,6 +28,69 @@ STEAMSPY_COLUMNS = [
 # Logging variables
 total_apps = 0
 total_apps_scrapped = 0
+
+
+def get_all_apps_list():
+    """
+    Requests Steam API for all app ids.
+
+    Returns:
+        list: List of all App ids and its names.
+    """
+    # Build url and make request
+    url = API_STEAM_APP_LIST_URL
+    with requests.get(url) as r:
+        # Raise exception if any
+        if r.status_code != 200:
+            r.raise_for_status()
+        # Returns it in JSON format
+        json_data = r.json()
+        if json_data:
+            return json_data["applist"]["apps"]
+        else:
+            # IF can't scrape return None
+            print("Can't scrape apps from Steam")
+            return None
+
+
+def clean_all_apps_list(app_list: list):
+    """
+    Drop all apps without name.
+
+    Args:
+        app_list (list): List of Steam apps, with appids and names.
+
+    Returns:
+        list: Cleaned Steam apps list.
+    """
+    cleaned_app_list = app_list.copy()
+    for app in app_list:
+        name = str(app["name"]).strip()
+        if name in ['', None, np.NAN]:
+            cleaned_app_list.remove(app)
+    return cleaned_app_list
+
+
+def scrape_all_apps_list(csv_path):
+    """
+    Scrape all apps id using Steam API and store
+    results in a csv file.
+    """
+    # Get all apps list from Steam API
+    app_list = get_all_apps_list()
+    if not app_list:
+        return None
+    # Clean app list
+    app_list = clean_all_apps_list(app_list)
+    # Store it in a csv file
+    with open(csv_path, "w", newline='', encoding='utf-8') as app_data_file:
+        file_writer = csv.DictWriter(
+            app_data_file,
+            fieldnames=ALL_APPS_LIST_COLUMNS,
+            extrasaction='ignore'
+        )
+        file_writer.writeheader()
+        file_writer.writerows(app_list)
 
 
 async def get_app_details(session, appid):
@@ -97,9 +164,9 @@ def store_app_details(app_details, csv_path, fieldnames):
         file_writer.writerows(app_details)
 
 
-async def scrape_steamspy_data():
+async def scrape_app_details():
     """
-    Main function. Scrape all games data using SteamSpy API and store
+    Scrape all games data using SteamSpy API and store
     results in a csv file.
     """
     # Prepare csv file
@@ -135,8 +202,10 @@ async def scrape_steamspy_data():
 if __name__ == '__main__':
     # Start time
     start = time.perf_counter()
-    # Scrape steamspy data
-    asyncio.run(scrape_steamspy_data())
+    # Scrape app list
+    scrape_all_apps_list(PATH_CSV_APP_LIST)
+    # Scrape app details
+    # asyncio.run(scrape_app_details())
     # Log total time taken
     stop = time.perf_counter()
     print("Total time taken:", stop - start)
