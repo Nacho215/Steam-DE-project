@@ -5,15 +5,23 @@ import asyncio
 import aiohttp
 import csv
 import time
+import logging
+import logging.config
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+from libs.config import settings
 
-# Constants
-OUTPUT_FOLDER = "output"
+# Constants definition
+API_ALL_APPS_LIST_URL = settings.API_ALL_APPS_LIST_URL
+API_APP_DETAILS_URL = settings.API_APP_DETAILS_URL
+LOGS_FOLDER = settings.LOGS_FOLDER
+OUTPUT_FOLDER = settings.OUTPUT_FOLDER
 PATH_CSV_APP_LIST = OUTPUT_FOLDER + "/steam_app_list.csv"
 PATH_CSV_APP_DATA = OUTPUT_FOLDER + "/steam_app_data.csv"
 DEBUG_APP_QUANTITY = 1000
 DEBUG_START_INDEX = 0
-API_ALL_APPS_LIST_URL = 'https://api.steampowered.com/ISteamApps/GetAppList/v2/'
-API_APP_DETAILS_URL = 'https://steamspy.com/api.php?request=appdetails&appid='
+
 BATCH_SIZE = 2500
 WAIT_TIME = 10
 
@@ -28,6 +36,10 @@ STEAMSPY_COLUMNS = [
 # Logging variables
 total_apps = 0
 total_apps_scrapped = 0
+
+# Setup logger
+logging.config.fileConfig('config_logs.conf')
+logger = logging.getLogger('SCRAPPER')
 
 
 def get_all_apps_list(api_url: str) -> list:
@@ -51,7 +63,7 @@ def get_all_apps_list(api_url: str) -> list:
             return json_data["applist"]["apps"]
         else:
             # IF can't scrape return None
-            print("Can't scrape apps from Steam")
+            logger.error("Can't scrape apps from Steam")
             return None
 
 
@@ -102,8 +114,8 @@ def scrape_all_apps_list(api_url: str, csv_path: str, columns: list) -> bool:
             )
             file_writer.writeheader()
             file_writer.writerows(app_list)
-    except Exception as e:
-        print(f"Can't store results in {csv_path}. {e.__str__}")
+    except Exception:
+        logger.error(f"Can't store results in {csv_path}.", exc_info=True)
         return False
     return True
 
@@ -137,10 +149,10 @@ async def get_app_details(
             return json_data
         # IF can't scrape this app, return only appid
         except aiohttp.ContentTypeError:
-            print(f"JSON decode failed for appid: {appid}")
+            logger.error(f"JSON decode failed for appid: {appid}.", exc_info=True)
             return {"appid": [str(appid)]}
         except Exception:
-            print(f"Can't scrape info for appid: {appid}")
+            logger.error(f"Can't scrape info for appid: {appid}.", exc_info=True)
             return {"appid": [str(appid)]}
 
 
@@ -172,7 +184,9 @@ async def collect_all_app_details(
     # Count apps scrapped for logging
     global total_apps_scrapped
     total_apps_scrapped = total_apps_scrapped + len(app_ids_list)
-    print(f"Scrapped {len(app_ids_list)} apps. Progress: {total_apps_scrapped}/{total_apps}")
+    logger.debug(
+        f"Scrapped {len(app_ids_list)} apps. Progress: {total_apps_scrapped}/{total_apps}"
+        )
     # Return details for all apps in the list
     return results
 
@@ -202,8 +216,8 @@ def store_app_details(
                 extrasaction='ignore'
             )
             file_writer.writerows(app_details)
-    except Exception as e:
-        print(f"Can't store results in {csv_path}. {e.__str__}")
+    except Exception:
+        logger.error(f"Can't store results in {csv_path}.", exc_info=True)
         return False
     return True
 
@@ -260,10 +274,10 @@ async def scrape_app_details(
             store_app_details(app_details, path_app_details_output, columns)
             # Wait between requests to avoid overloading the API
             if i < batch_limits[-1]:
-                print(f"Waiting {wait_time} seconds...")
+                logger.debug(f"Waiting {wait_time} seconds...")
                 time.sleep(wait_time)
-    except Exception as e:
-        print(f"Scraping app details failed. {e.__str__}")
+    except Exception:
+        logger.error(f"Scraping app details failed.", exc_info=True)
         return False
     return True
 
@@ -278,20 +292,20 @@ def main():
     #     columns=ALL_APPS_LIST_COLUMNS
     # )
     # Scrape app details
-    asyncio.run(
-        scrape_app_details(
-            path_app_list_input=PATH_CSV_APP_LIST,
-            path_app_details_output=PATH_CSV_APP_DATA,
-            api_url=API_APP_DETAILS_URL,
-            columns=STEAMSPY_COLUMNS,
-            start_index=DEBUG_START_INDEX,
-            batch_size=BATCH_SIZE,
-            wait_time=WAIT_TIME
-        )
-    )
+    # asyncio.run(
+    #     scrape_app_details(
+    #         path_app_list_input=PATH_CSV_APP_LIST,
+    #         path_app_details_output=PATH_CSV_APP_DATA,
+    #         api_url=API_APP_DETAILS_URL,
+    #         columns=STEAMSPY_COLUMNS,
+    #         start_index=DEBUG_START_INDEX,
+    #         batch_size=BATCH_SIZE,
+    #         wait_time=WAIT_TIME
+    #     )
+    # )
     # Log total time taken
     stop = time.perf_counter()
-    print(f"Total time taken: {np.round(stop - start, 2)}s")
+    logger.debug(f"Total time taken: {np.round(stop - start, 2)}s")
     # Total time taken: 1184.54s (almost 20 mins)
 
 
