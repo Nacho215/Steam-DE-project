@@ -5,3 +5,7 @@ src/test.ipynb
 src/main.py
 src/chatgpt.py
 __pycache__/
+output/steam_app_data_raw.csv
+output/steam_app_data.csv
+output/steam_app_list.csv
+logs/logs.log

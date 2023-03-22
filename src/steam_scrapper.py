@@ -1,32 +1,46 @@
+# Imports
 import pandas as pd
 import numpy as np
 import requests
 import asyncio
 import aiohttp
 import csv
+import boto3
 import time
 import logging
 import logging.config
 import sys
 import os
+# Add path in order to access libs folder
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 from libs.config import settings
 
 # Constants definition
+
+# API urls
 API_ALL_APPS_LIST_URL = settings.API_ALL_APPS_LIST_URL
 API_APP_DETAILS_URL = settings.API_APP_DETAILS_URL
+
+# S3 credentials
+AWS_KEY = settings.AWS_KEY
+AWS_SECRET = settings.AWS_SECRET
+AWS_REGION = settings.AWS_REGION
+AWS_S3_BUCKET = settings.AWS_S3_BUCKET
+
+# Local paths
 LOGS_FOLDER = settings.LOGS_FOLDER
 OUTPUT_FOLDER = settings.OUTPUT_FOLDER
 PATH_CSV_APP_LIST = OUTPUT_FOLDER + "/steam_app_list.csv"
-PATH_CSV_APP_DATA = OUTPUT_FOLDER + "/steam_app_data.csv"
+PATH_CSV_APP_DATA = OUTPUT_FOLDER + "/steam_app_data_raw.csv"
+
+# Parameters
 DEBUG_APP_QUANTITY = 1000
 DEBUG_START_INDEX = 0
-
 BATCH_SIZE = 2500
 WAIT_TIME = 10
 
+# Scrapping columns
 ALL_APPS_LIST_COLUMNS = ['appid', 'name']
-
 STEAMSPY_COLUMNS = [
         'appid', 'name', 'developer', 'publisher', 'score_rank', 'owners',
         'average_forever', 'average_2weeks', 'median_forever', 'median_2weeks',
@@ -39,7 +53,7 @@ total_apps_scrapped = 0
 
 # Setup logger
 logging.config.fileConfig('config_logs.conf')
-logger = logging.getLogger('SCRAPPER')
+logger = logging.getLogger('Scrapper')
 
 
 def get_all_apps_list(api_url: str) -> list:
@@ -85,15 +99,22 @@ def clean_all_apps_list(app_list: list) -> list:
     return cleaned_app_list
 
 
-def scrape_all_apps_list(api_url: str, csv_path: str, columns: list) -> bool:
+def scrape_all_apps_list(
+        api_url: str,
+        csv_path: str,
+        columns: list,
+        s3_info: dict
+        ) -> bool:
     """
-    Scrape all apps id using Steam API and store
-    results in a csv file.
+    Scrape all apps id using Steam API,
+    store results in a csv file,
+    and upload results to S3.
 
     Args:
         api_url (str): Steam API all apps url.
         csv_path (str): Path where store csv file with scrapping results.
         columns (list): List of columns to filter.
+        s3_info (dict): Dictionary with S3 credentials.
 
     Returns:
         bool: True if scrapped successfully. False otherwise.
@@ -104,7 +125,34 @@ def scrape_all_apps_list(api_url: str, csv_path: str, columns: list) -> bool:
         return False
     # Clean app list
     app_list = clean_all_apps_list(app_list)
-    # Store it in a csv file
+    # Store it to csv file and uploads to s3
+    store_all_apps_list(
+        app_list,
+        csv_path,
+        columns,
+        s3_info=s3_info
+    )
+
+
+def store_all_apps_list(
+        app_list: list,
+        csv_path: str,
+        columns: list,
+        s3_info: dict
+        ) -> bool:
+    """
+    Store all apps list in a csv file, and then uploads it to S3.
+
+    Args:
+        app_list (str): List of Steam apps.
+        csv_path (str): Path where store csv file.
+        columns (list): List of columns to filter.
+        s3_info (dict): Dictionary with S3 credentials.
+
+    Returns:
+        bool: True if stored successfully. False otherwise.
+    """
+    # Store csv file locally
     try:
         with open(csv_path, "w", newline='', encoding='utf-8') as app_data_file:
             file_writer = csv.DictWriter(
@@ -117,6 +165,29 @@ def scrape_all_apps_list(api_url: str, csv_path: str, columns: list) -> bool:
     except Exception:
         logger.error(f"Can't store results in {csv_path}.", exc_info=True)
         return False
+    logger.info(f"App list successfully stored in {csv_path}")
+    try:
+        # Upload it to s3 bucket
+        s3 = boto3.client(
+            service_name='s3',
+            region_name=s3_info["region"],
+            aws_access_key_id=s3_info["access_key"],
+            aws_secret_access_key=s3_info["secret"]
+        )
+        s3.upload_file(
+            Filename=csv_path,
+            Bucket=s3_info["bucket"],
+            Key=s3_info["file_key"]
+        )
+    except Exception:
+        logger.error(
+            f"Can't upload results to S3 bucket: {s3_info['bucket']}.",
+            exc_info=True
+        )
+        return False
+    logger.info(
+        f"{s3_info['file_key']} successfully uploaded to S3 bucket: {s3_info['bucket']}"
+    )
     return True
 
 
@@ -212,7 +283,6 @@ def store_app_details(
             file_writer = csv.DictWriter(
                 app_data_file,
                 fieldnames=fieldnames,
-                newline='',
                 extrasaction='ignore'
             )
             file_writer.writerows(app_details)
@@ -222,14 +292,55 @@ def store_app_details(
     return True
 
 
+def upload_app_details_to_s3(
+        csv_path: str,
+        s3_info: dict
+    ) -> bool:
+    """
+    Upload csv to s3 bucket.
+
+    Args:
+        csv_path (str): Path for store csv file.
+        s3_info (dict): Dictionary with S3 credentials.
+    
+    Returns:
+        bool: True if uploaded successfully. False otherwise.
+    """
+    # Upload csv to s3 bucket
+    try:
+        s3 = boto3.client(
+            service_name='s3',
+            region_name=s3_info["region"],
+            aws_access_key_id=s3_info["access_key"],
+            aws_secret_access_key=s3_info["secret"]
+        )
+        s3.upload_file(
+            Filename=csv_path,
+            Bucket=s3_info["bucket"],
+            Key=s3_info["file_key"]
+        )
+    except Exception:
+        logger.error(
+            f"Can't upload results to S3 bucket: {s3_info['bucket']}.",
+            exc_info=True
+        )
+        return False
+    logger.info(
+        f"{s3_info['file_key']} successfully uploaded to S3 bucket: {s3_info['bucket']}"
+    )
+    return True
+
+
 async def scrape_app_details(
         path_app_list_input: str,
         path_app_details_output: str,
         api_url: str,
         columns: list,
+        s3_info: dict,
         start_index: int = 0,
         batch_size: int = 1000,
-        wait_time: int = 5) -> bool:
+        wait_time: int = 5
+        ) -> bool:
     """
     Scrape all games details using SteamSpy API and store
     results in a csv file.
@@ -239,6 +350,7 @@ async def scrape_app_details(
         path_app_details_output (str): Path where store results.
         api_url (str): SteamSpy API app details url.
         columns (list): A list of fields to filter.
+        s3_info (dict): Dictionary with S3 credentials.
         start_index (int, optional): Index to start scrapping.
             Defaults to 0.
         batch_size (int, optional): Size of the batch to scrape.
@@ -277,37 +389,69 @@ async def scrape_app_details(
                 logger.debug(f"Waiting {wait_time} seconds...")
                 time.sleep(wait_time)
     except Exception:
-        logger.error(f"Scraping app details failed.", exc_info=True)
+        logger.error("Scraping app details failed.", exc_info=True)
         return False
-    return True
+    logger.info("All app details scrapped successfully!")
+    # When the csv is already stored, upload it to s3
+    upload_results = upload_app_details_to_s3(
+        csv_path=path_app_details_output,
+        s3_info=s3_info
+    )
+    return upload_results
 
 
-def main():
-    # Start time
-    start = time.perf_counter()
-    # # Scrape all apps list
-    # scrape_all_apps_list(
-    #     api_url=API_ALL_APPS_LIST_URL,
-    #     csv_path=PATH_CSV_APP_LIST,
-    #     columns=ALL_APPS_LIST_COLUMNS
-    # )
+def run_scrapping_process():
+    # Time each process with counters
+    counters = []
+    counters.append(time.perf_counter())
+    # Scrape all apps list
+    logger.info("Starting scrapping process for apps list...")
+    scrape_all_apps_list(
+        api_url=API_ALL_APPS_LIST_URL,
+        csv_path=PATH_CSV_APP_LIST,
+        columns=ALL_APPS_LIST_COLUMNS,
+        s3_info={
+            "access_key": AWS_KEY,
+            "secret": AWS_SECRET,
+            "region": AWS_REGION,
+            "bucket": AWS_S3_BUCKET,
+            "file_key": PATH_CSV_APP_LIST.split('/')[-1]
+        }
+    )
     # Scrape app details
-    # asyncio.run(
-    #     scrape_app_details(
-    #         path_app_list_input=PATH_CSV_APP_LIST,
-    #         path_app_details_output=PATH_CSV_APP_DATA,
-    #         api_url=API_APP_DETAILS_URL,
-    #         columns=STEAMSPY_COLUMNS,
-    #         start_index=DEBUG_START_INDEX,
-    #         batch_size=BATCH_SIZE,
-    #         wait_time=WAIT_TIME
-    #     )
-    # )
-    # Log total time taken
-    stop = time.perf_counter()
-    logger.debug(f"Total time taken: {np.round(stop - start, 2)}s")
+    counters.append(time.perf_counter())
+    logger.info("Starting scrapping process for apps details...")
+    asyncio.run(
+        scrape_app_details(
+            path_app_list_input=PATH_CSV_APP_LIST,
+            path_app_details_output=PATH_CSV_APP_DATA,
+            api_url=API_APP_DETAILS_URL,
+            columns=STEAMSPY_COLUMNS,
+            start_index=DEBUG_START_INDEX,
+            batch_size=BATCH_SIZE,
+            wait_time=WAIT_TIME,
+            s3_info={
+                "access_key": AWS_KEY,
+                "secret": AWS_SECRET,
+                "region": AWS_REGION,
+                "bucket": AWS_S3_BUCKET,
+                "file_key": PATH_CSV_APP_DATA.split('/')[-1]
+            }
+        )
+    )
+    counters.append(time.perf_counter())
+    # Log each process time taken
+    logger.info(
+        f"Total scraping and storing app list process time: {np.round(counters[1] - counters[0], 2)}s"
+    )
+    logger.info(
+        f"Total scraping and storing app details process time: {np.round(counters[2] - counters[1], 2)}s"
+    )
+    logger.info(
+        f"Total scraping and storing process time: {np.round(counters[2] - counters[0], 2)}s"
+    )
     # Total time taken: 1184.54s (almost 20 mins)
 
 
 if __name__ == '__main__':
-    main()
+    run_scrapping_process()

@@ -22,16 +22,12 @@ class Settings:
     # DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}" + \
     #     f"@{POSTGRES_SERVER}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
-    # # Aws s3 config
-    # S3_KEY: str = os.getenv('S3_KEY')
-    # S3_SECRET: str = os.getenv('S3_SECRET')
-    # S3_CREDENTIALS = {"key": S3_KEY, "secret": S3_SECRET}
-    # S3_BUCKET: str = os.getenv('S3_BUCKET')
-    # S3_FOLDER_SAVE_CSV: str = os.getenv('S3_FOLDER_SAVE_CSV')
-    # S3_FOLDER_SAVE_CSV_PATH = f's3://{S3_BUCKET}/{S3_FOLDER_SAVE_CSV}'
-    # S3_DATASET_FOLDER: str = os.getenv('S3_DATASET_FOLDER')
-    # S3_DATASET_NAME: str = os.getenv('S3_DATASET_NAME')
-    # S3_DATASET_PATH = f'{S3_DATASET_FOLDER}/{S3_DATASET_NAME}'
+    # Aws s3 config
+    AWS_KEY: str = os.getenv('AWS_ACCESS_KEY')
+    AWS_SECRET: str = os.getenv('AWS_SECRET_KEY')
+    AWS_CREDENTIALS = {"key": AWS_KEY, "secret": AWS_SECRET}
+    AWS_REGION: str = os.getenv('AWS_REGION_NAME')
+    AWS_S3_BUCKET: str = os.getenv('AWS_S3_BUCKET')
 
     # API urls
     API_ALL_APPS_LIST_URL: str = os.getenv('API_ALL_APPS_LIST_URL')
