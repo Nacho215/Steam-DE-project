@@ -105,6 +105,16 @@ class SteamETL:
         s3_info: dict,
         output_csv_path: str
     ):
+        """
+        Download dataset from s3 bucket and stores in a given path.
+
+        Args:
+            s3_info (dict): S3 credentials.
+            output_csv_path (str): Local Path to store dataset.
+
+        Returns:
+            _type_: True if downloaded successfully. False otherwise.
+        """
         # Download file from s3 bucket
         s3 = boto3.client(
             service_name='s3',
@@ -137,6 +147,28 @@ class SteamETL:
         new_table_id_column: str,
         new_table_list_column: str
     ) -> tuple:
+        """
+        Useful method for handling many to many relationship between a table
+        and one column containing data in a list format.
+        It creates 2 extra tables:
+        - one containing unique values for that column,
+        - and the other one being an intermediate that links both tables
+        Then, deletes the list column from original table.
+
+        Args:
+            original_df (pd.DataFrame): DataFrame to normalize.
+            id_column (str): ID column from original DataFrame.
+            list_column (str): Column containing list values.
+            new_table_id_column (str): ID column for the new table.
+            new_table_list_column (str): Singular name for the new table list column.
+                # E.g: "genres"(list_column) -> "genre"(new_table_list_column)
+
+        Returns:
+            tuple: Returns 3 DataFrames in a tuple:
+                - Original DataFrame normalized
+                - Intermediate table
+                - New table
+        """
         # Create a copy of original dataframe
         df = original_df.copy()
 
@@ -173,6 +205,28 @@ class SteamETL:
         new_table_id_column: str,
         new_table_json_column: str
     ) -> tuple:
+        """
+        Useful method for handling many to many relationship between a table
+        and one column containing data in JSON format.
+        It creates 2 extra tables:
+        - one containing unique values for that column,
+        - and the other one being an intermediate that links both tables
+        Then, deletes the json column from original table.
+
+        Args:
+            original_df (pd.DataFrame): DataFrame to normalize.
+            id_column (str): ID column from original DataFrame.
+            json_column (str): Column containing values in JSON format.
+            new_table_id_column (str): ID column for the new table.
+            new_table_json_column (str): Singular name for the new table json column.
+                # E.g: "tags"(json_column) -> "tag"(new_table_json_column)
+
+        Returns:
+            tuple: Returns 3 DataFrames in a tuple:
+                - Original DataFrame normalized
+                - Intermediate table
+                - New table
+        """
         # Create a copy of original dataframe
         df = original_df.copy()
 
@@ -210,15 +264,33 @@ class SteamETL:
         self,
         col: str
     ) -> list:
-        # Make column a list
-        languages = col.split(',')
-        languages = [lang.strip() for lang in languages]
-        return languages
+        """
+        Strip and split genres column.
+
+        Args:
+            col (str): A string column with values in a list format.
+
+        Returns:
+            list: A list of clean genres.
+        """
+        # Make column a list and remove trailing spaces
+        genres = col.split(',')
+        genres = [genre.strip() for genre in genres]
+        return genres
 
     def transform_languages_column(
         self,
         col: str
     ) -> list:
+        """
+        Split and clean languages column.
+
+        Args:
+            col (str): A string column with values in a list format.
+
+        Returns:
+            list: A list of clean languages.
+        """
         # Chars to remove
         invalid_chars = ['strong', 'amp', '*', '&', 'lt;', 'gt;', ';', r'\/', '/', 'br']
 
@@ -228,7 +300,8 @@ class SteamETL:
             # Remove invalid chars
             for char in invalid_chars:
                 lang = lang.replace(char, '')
-            # Replace \r for ' - ' for languages like 'English\nInterface: English\nFull Audio: Flemish\nSubtitles'
+            # Replace \r for ' - ' for languages like
+            # 'English\nInterface: English\nFull Audio: Flemish\nSubtitles'
             lang = lang.replace('\r\n', ' - ')
             # Remove whitespaces
             lang = lang.strip()
@@ -246,6 +319,15 @@ class SteamETL:
         self,
         col: str
     ) -> list:
+        """
+        Split and clean tags column.
+
+        Args:
+            col (str): A string column with values in a JSON format.
+
+        Returns:
+            list: A list of clean genres represented in tuples.
+        """
         # Return empty list if no tags
         if not col:
             return []
@@ -270,16 +352,16 @@ class SteamETL:
         output_csv_path: str
     ) -> bool:
         """
-        Store given app details into a csv file with given columns.
+        Store transformed data in csv files.
 
         Args:
-            app_details (list): A list of dictionaries containing app details.
-            csv_path (str): Path for store csv file.
-            fieldnames (list): A list of fields to filter.
+            df_list (list): A list of tuples containing dataframes to store an their names.
+            output_csv_path (str): Path for store csv files.
 
         Returns:
             bool: True if stored successfully. False otherwise.
         """
+        # Store csv files with names given in df_list
         try:
             for df, name in df_list:
                 path = f"{output_csv_path}/{name}.csv"
