@@ -29,9 +29,9 @@ AWS_S3_BUCKET = settings.AWS_S3_BUCKET
 
 # Local paths
 LOGS_FOLDER = settings.LOGS_FOLDER
-OUTPUT_FOLDER = settings.OUTPUT_FOLDER
+OUTPUT_FOLDER = settings.DATASETS_FOLDER + "/raw"
 PATH_CSV_APP_LIST = OUTPUT_FOLDER + "/steam_app_list.csv"
-PATH_CSV_APP_DATA = OUTPUT_FOLDER + "/steam_app_data_raw.csv"
+PATH_CSV_APP_DATA = OUTPUT_FOLDER + "/steam_app_data.csv"
 
 # Parameters
 DEBUG_APP_QUANTITY = 1000
@@ -42,10 +42,10 @@ WAIT_TIME = 10
 # Scraping columns
 ALL_APPS_LIST_COLUMNS = ['appid', 'name']
 STEAMSPY_COLUMNS = [
-        'appid', 'name', 'developer', 'publisher', 'score_rank', 'owners',
-        'average_forever', 'average_2weeks', 'median_forever', 'median_2weeks',
-        'ccu', 'price', 'initialprice', 'discount', 'tags', 'languages', 'genre'
-    ]
+    'appid', 'name', 'developer', 'publisher', 'score_rank', 'owners',
+    'average_forever', 'average_2weeks', 'median_forever', 'median_2weeks',
+    'ccu', 'price', 'initialprice', 'discount', 'tags', 'languages', 'genre'
+]
 
 # Logging variables
 total_apps = 0

@@ -34,7 +34,7 @@ class Settings:
     API_APP_DETAILS_URL: str = os.getenv('API_APP_DETAILS_URL')
 
     # Local paths
-    OUTPUT_FOLDER: str = os.getenv('OUTPUT_FOLDER')
+    DATASETS_FOLDER: str = os.getenv('DATASETS_FOLDER')
     LOGS_FOLDER: str = os.getenv('LOGS_FOLDER')
     LOGS_CONFIG_FILE_PATH: str = os.getenv('LOGS_CONFIG_FILE_PATH')
 

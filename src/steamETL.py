@@ -59,7 +59,8 @@ class SteamETL:
             original_df=df_apps,
             id_column='id_app',
             list_column='genre',
-            new_table_id_column='id_genre'
+            new_table_id_column='id_genre',
+            new_table_list_column='genre'
         )
 
         # Transform languages column into a list column
@@ -69,7 +70,8 @@ class SteamETL:
             original_df=df_apps,
             id_column='id_app',
             list_column='languages',
-            new_table_id_column='id_language'
+            new_table_id_column='id_language',
+            new_table_list_column='language'
         )
 
         # Transform tags column into a list column
@@ -79,7 +81,8 @@ class SteamETL:
             original_df=df_apps,
             id_column='id_app',
             json_column='tags',
-            new_table_id_column='id_tag'
+            new_table_id_column='id_tag',
+            new_table_json_column='tag'
         )
 
         # Store transformed data to csv files
@@ -88,7 +91,7 @@ class SteamETL:
             (df_apps_genres, 'apps_genres'),
             (df_genres, 'genres'),
             (df_apps_languages, 'apps_languages'),
-            (df_apps_languages, 'languages'),
+            (df_languages, 'languages'),
             (df_apps_tags, 'apps_tags'),
             (df_tags, 'tags')
         ]
@@ -131,23 +134,30 @@ class SteamETL:
         original_df: pd.DataFrame,
         id_column: str,
         list_column: str,
-        new_table_id_column: str
+        new_table_id_column: str,
+        new_table_list_column: str
     ) -> tuple:
         # Create a copy of original dataframe
         df = original_df.copy()
 
         # Create new table with unique values from that column
         df_new_table = pd.DataFrame(df.explode(list_column)[list_column])
-        df_new_table[list_column] = df_new_table[list_column] .apply(lambda x : x.strip())
-        df_new_table = df_new_table.drop_duplicates(subset=list_column)
-        df_new_table = df_new_table[df_new_table[list_column]!='nan']
+        df_new_table.rename(columns={list_column: new_table_list_column}, inplace=True)
+        df_new_table[new_table_list_column] = df_new_table[new_table_list_column].apply(lambda x: x.strip())
+        df_new_table = df_new_table.drop_duplicates(subset=new_table_list_column)
+        df_new_table = df_new_table[df_new_table[new_table_list_column] != 'nan']
         df_new_table = df_new_table.reset_index(drop=True).reset_index(names=new_table_id_column)
 
         # Create new intermediate table that joins two tables
         df_intermediate_table = df.explode(list_column)[[id_column, list_column]].reset_index(drop=True)
         df_intermediate_table = df_intermediate_table[df_intermediate_table[list_column]!='nan']
-        df_intermediate_table[list_column] = df_intermediate_table[list_column].apply(lambda x : x.strip())
-        df_intermediate_table = df_intermediate_table.merge(df_new_table, on=list_column, how='left').drop(list_column, axis=1)
+        df_intermediate_table[list_column] = df_intermediate_table[list_column].apply(lambda x: x.strip())
+        df_intermediate_table = df_intermediate_table.merge(
+            df_new_table,
+            left_on=list_column,
+            right_on=new_table_list_column,
+            how='left'
+        ).drop([list_column, new_table_list_column], axis=1)
 
         # Drop list column from original table
         df.drop(columns=[list_column], inplace=True)
@@ -160,20 +170,22 @@ class SteamETL:
         original_df: pd.DataFrame,
         id_column: str,
         json_column: str,
-        new_table_id_column: str
+        new_table_id_column: str,
+        new_table_json_column: str
     ) -> tuple:
         # Create a copy of original dataframe
         df = original_df.copy()
 
         # Create new table with unique tags from that column
         df_new_table = pd.DataFrame(df.explode(json_column)[json_column])
-        df_new_table.dropna(subset=json_column, inplace=True)
-        df_new_table[json_column] = df_new_table[json_column].apply(lambda x: x[0])
-        df_new_table.drop_duplicates(subset=json_column, inplace=True)
+        df_new_table.rename(columns={json_column: new_table_json_column}, inplace=True)
+        df_new_table.dropna(subset=new_table_json_column, inplace=True)
+        df_new_table[new_table_json_column] = df_new_table[new_table_json_column].apply(lambda x: x[0])
+        df_new_table.drop_duplicates(subset=new_table_json_column, inplace=True)
         df_new_table = df_new_table.reset_index(drop=True).reset_index(names=new_table_id_column)
 
         # Create new intermediate table that joins two tables
-        cols = ['tag', 'count']
+        cols = [new_table_json_column, 'count']
         df_intermediate_table = df.explode(json_column)[[id_column, json_column]].reset_index(drop=True)
         df_intermediate_table.dropna(subset=json_column, inplace=True)
         df_intermediate_table[cols[0]] = df_intermediate_table[json_column].apply(lambda x: x[0])
@@ -182,7 +194,7 @@ class SteamETL:
         df_intermediate_table = df_intermediate_table.merge(
             df_new_table,
             left_on=cols[0],
-            right_on=json_column,
+            right_on=new_table_json_column,
             how='left'
         ).drop(cols[0], axis=1)
         # Reorder columns

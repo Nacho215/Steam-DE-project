@@ -141,3 +141,22 @@
 '2023-03-25T19:50' - ETL - INFO - Raw app data retrieved successfully from S3 bucket: nacho215-steam-de-project into output/steam_app_data_raw.csv.
 '2023-03-26T13:17' - ETL - INFO - Raw app data retrieved successfully from S3 bucket: nacho215-steam-de-project into output/steam_app_data_raw.csv.
 '2023-03-26T13:18' - ETL - INFO - Raw app data retrieved successfully from S3 bucket: nacho215-steam-de-project into output/steam_app_data_raw.csv.
+'2023-03-26T23:02' - ETL - ERROR - Can't store results in datasets/clean/apps.csv.
+Traceback (most recent call last):
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\src\steamETL.py", line 274, in store_transformed_data
+    df.to_csv(
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\pandas\util\_decorators.py", line 211, in wrapper
+    return func(*args, **kwargs)
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\pandas\core\generic.py", line 3720, in to_csv
+    return DataFrameRenderer(formatter).to_csv(
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\pandas\util\_decorators.py", line 211, in wrapper
+    return func(*args, **kwargs)
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\pandas\io\formats\format.py", line 1189, in to_csv
+    csv_formatter.save()
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\pandas\io\formats\csvs.py", line 241, in save
+    with get_handle(
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\pandas\io\common.py", line 734, in get_handle
+    check_parent_directory(str(handle))
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\pandas\io\common.py", line 597, in check_parent_directory
+    raise OSError(rf"Cannot save file into a non-existent directory: '{parent}'")
+OSError: Cannot save file into a non-existent directory: 'datasets\clean'
