@@ -9,3 +9,6 @@ output/steam_app_data_raw.csv
 output/steam_app_data.csv
 output/steam_app_list.csv
 logs/logs.log
+keys/airflow-ec2-key.pem
+keys/airflow-credentials.txt
+src/steam_ETL_dag.py
