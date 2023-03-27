@@ -2,6 +2,7 @@
 import pandas as pd
 import boto3
 import json
+import os
 import logging
 import logging.config
 from steamScraper import run_scraping_process
@@ -41,15 +42,16 @@ class SteamETL:
         df_apps = df_apps[~df_apps['publisher'].isna()]
 
         # Rename id column
-        df_apps.rename({"appid": "id_app"}, axis=1, inplace=True)
+        df_apps.rename(columns={"appid": "id_app"}, inplace=True)
         # Transform prices from cents to dollars
         df_apps["price"] = df_apps["price"] / 100.0
         df_apps["initialprice"] = df_apps["initialprice"] / 100.0
         df_apps.rename(
-            {
+            columns={
                 "price": "price_usd",
                 "initialprice": "initial_price_usd"
-            }
+            },
+            inplace=True
         )
 
         # Transform genre column into a list column
@@ -95,9 +97,20 @@ class SteamETL:
             (df_apps_tags, 'apps_tags'),
             (df_tags, 'tags')
         ]
-        self.store_transformed_data(
+        self.store_transformed_data_locally(
             df_list=dataframes_store_info,
             output_csv_path=output_csv_path
+        )
+
+    def load(
+        self,
+        dir_csv_files: str,
+        s3_info: dict
+    ):
+        # Upload transformed csv files to S3 bucket
+        self.upload_transformed_data_to_s3(
+            dir_csv_files=dir_csv_files,
+            s3_info=s3_info
         )
 
     def download_from_s3(
@@ -346,7 +359,7 @@ class SteamETL:
             list_tags.append((tag, count))
         return list_tags
 
-    def store_transformed_data(
+    def store_transformed_data_locally(
         self,
         df_list: list,
         output_csv_path: str
@@ -373,4 +386,53 @@ class SteamETL:
         except Exception:
             logger.error(f"Can't store results in {path}.", exc_info=True)
             return False
+        return True
+
+    def upload_transformed_data_to_s3(
+        self,
+        dir_csv_files: str,
+        s3_info: dict
+    ) -> bool:
+        """
+        Upload csv files to s3 bucket.
+
+        Args:
+            dir_csv_files (str): Local directory of transformed csv files.
+            s3_info (dict): Dictionary with S3 credentials.
+
+        Returns:
+            bool: True if uploaded successfully. False otherwise.
+        """
+        # Upload all csvs to s3 bucket
+        try:
+            s3 = boto3.client(
+                service_name='s3',
+                region_name=s3_info["region"],
+                aws_access_key_id=s3_info["access_key"],
+                aws_secret_access_key=s3_info["secret"]
+            )
+            for filename in os.listdir(dir_csv_files):
+                # Full file path
+                file_path = f'{dir_csv_files}/{filename}'
+                # S3 File Key example: 'clean/apps.csv'
+                clean_dir = dir_csv_files.split('/')[-1]
+                s3_file_key = "/".join([clean_dir, filename])
+                s3.upload_file(
+                    Filename=file_path,
+                    Bucket=s3_info["bucket"],
+                    Key=s3_file_key
+                )
+                # Log
+                logger.info(
+                    f"{s3_info['file_key']} successfully uploaded to S3 bucket: {s3_info['bucket']}"
+                )
+        except Exception:
+            logger.error(
+                f"Can't upload results to S3 bucket: {s3_info['bucket']}.",
+                exc_info=True
+            )
+            return False
+        logger.info(
+            f"Transformed data successfully uploaded to S3 bucket: {s3_info['bucket']}"
+        )
         return True

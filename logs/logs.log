@@ -160,3 +160,54 @@ Traceback (most recent call last):
   File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\pandas\io\common.py", line 597, in check_parent_directory
     raise OSError(rf"Cannot save file into a non-existent directory: '{parent}'")
 OSError: Cannot save file into a non-existent directory: 'datasets\clean'
+'2023-03-27T11:50' - ETL - ERROR - Can't upload results to S3 bucket: nacho215-steam-de-project.
+Traceback (most recent call last):
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\src\steamETL.py", line 416, in upload_transformed_data_to_s3
+    s3_file_key = "/".join(dir_csv_files.split('/')[-1], filename)
+TypeError: str.join() takes exactly one argument (2 given)
+'2023-03-27T11:52' - ETL - ERROR - Can't upload results to S3 bucket: nacho215-steam-de-project.
+Traceback (most recent call last):
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\src\steamETL.py", line 418, in upload_transformed_data_to_s3
+    s3.upload_file(
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\boto3\s3\inject.py", line 143, in upload_file
+    return transfer.upload_file(
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\boto3\s3\transfer.py", line 292, in upload_file
+    future.result()
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\futures.py", line 103, in result
+    return self._coordinator.result()
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\futures.py", line 266, in result
+    raise self._exception
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\tasks.py", line 269, in _main
+    self._submit(transfer_future=transfer_future, **kwargs)
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\upload.py", line 585, in _submit
+    upload_input_manager.provide_transfer_size(transfer_future)
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\upload.py", line 244, in provide_transfer_size
+    self._osutil.get_file_size(transfer_future.meta.call_args.fileobj)
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\utils.py", line 247, in get_file_size
+    return os.path.getsize(filename)
+  File "C:\Users\Usuario\AppData\Local\Programs\Python\Python310\lib\genericpath.py", line 50, in getsize
+    return os.stat(filename).st_size
+FileNotFoundError: [WinError 2] El sistema no puede encontrar el archivo especificado: 'apps.csv'
+'2023-03-27T11:54' - ETL - ERROR - Can't upload results to S3 bucket: nacho215-steam-de-project.
+Traceback (most recent call last):
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\src\steamETL.py", line 418, in upload_transformed_data_to_s3
+    s3.upload_file(
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\boto3\s3\inject.py", line 143, in upload_file
+    return transfer.upload_file(
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\boto3\s3\transfer.py", line 292, in upload_file
+    future.result()
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\futures.py", line 103, in result
+    return self._coordinator.result()
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\futures.py", line 266, in result
+    raise self._exception
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\tasks.py", line 269, in _main
+    self._submit(transfer_future=transfer_future, **kwargs)
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\upload.py", line 585, in _submit
+    upload_input_manager.provide_transfer_size(transfer_future)
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\upload.py", line 244, in provide_transfer_size
+    self._osutil.get_file_size(transfer_future.meta.call_args.fileobj)
+  File "e:\respaldo\Nacho\Programacion\Python\Proyectos\Steam-DE-project\venv\lib\site-packages\s3transfer\utils.py", line 247, in get_file_size
+    return os.path.getsize(filename)
+  File "C:\Users\Usuario\AppData\Local\Programs\Python\Python310\lib\genericpath.py", line 50, in getsize
+    return os.stat(filename).st_size
+FileNotFoundError: [WinError 3] El sistema no puede encontrar la ruta especificada: 'apps.csv/datasets/clean'

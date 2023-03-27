@@ -296,12 +296,12 @@ def store_app_details(
 def upload_app_details_to_s3(
         csv_path: str,
         s3_info: dict
-    ) -> str:
+) -> str:
     """
     Upload csv to s3 bucket.
 
     Args:
-        csv_path (str): Path for store csv file.
+        csv_path (str): Local path of csv file.
         s3_info (dict): Dictionary with S3 credentials.
 
     Returns:
