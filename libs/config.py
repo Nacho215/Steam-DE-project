@@ -22,7 +22,7 @@ class Settings:
     # DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}" + \
     #     f"@{POSTGRES_SERVER}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
-    # Aws s3 config
+    # AWS S3 config
     AWS_KEY: str = os.getenv('AWS_ACCESS_KEY')
     AWS_SECRET: str = os.getenv('AWS_SECRET_KEY')
     AWS_CREDENTIALS = {"key": AWS_KEY, "secret": AWS_SECRET}
@@ -38,6 +38,14 @@ class Settings:
     LOGS_FOLDER: str = os.getenv('LOGS_FOLDER')
     LOGS_CONFIG_FILE_PATH: str = os.getenv('LOGS_CONFIG_FILE_PATH')
 
+    # AWS RDS Postgres config
+    POSTGRES_USER: str = os.getenv('POSTGRES_USER')
+    POSTGRES_DB: str = os.getenv('POSTGRES_DB')
+    POSTGRES_PASSWORD: str = os.getenv('POSTGRES_PASSWORD')
+    POSTGRES_SERVER: str = os.getenv('POSTGRES_SERVER')
+    POSTGRES_PORT: str = os.getenv('POSTGRES_PORT')
+    DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}" + \
+        f"@{POSTGRES_SERVER}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 # Reference to class
 settings = Settings()

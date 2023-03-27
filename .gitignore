@@ -12,3 +12,4 @@ logs/logs.log
 keys/airflow-ec2-key.pem
 keys/airflow-credentials.txt
 src/steam_ETL_dag.py
+keys/postgres-credentials.txt

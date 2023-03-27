@@ -3,13 +3,19 @@ import pandas as pd
 import boto3
 import json
 import os
+import sys
 import logging
 import logging.config
 from steamScraper import run_scraping_process
+sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+from libs.db import DB
 
 # Setup logger
 logging.config.fileConfig('config_logs.conf')
 logger = logging.getLogger('ETL')
+
+# Table names
+table_names = []
 
 
 class SteamETL:
@@ -97,27 +103,46 @@ class SteamETL:
             (df_apps_tags, 'apps_tags'),
             (df_tags, 'tags')
         ]
-        self.store_transformed_data_locally(
-            df_list=dataframes_store_info,
-            output_csv_path=output_csv_path
-        )
+        # self.store_transformed_data_locally(
+        #     df_list=dataframes_store_info,
+        #     output_csv_path=output_csv_path
+        # )
+        # Save table names
+        global table_names
+        table_names = [df[1] for df in dataframes_store_info]
 
     def load(
         self,
         dir_csv_files: str,
-        s3_info: dict
-    ):
-        # Upload transformed csv files to S3 bucket
-        self.upload_transformed_data_to_s3(
-            dir_csv_files=dir_csv_files,
-            s3_info=s3_info
+        s3_info: dict,
+        engine
+    ) -> bool:
+        # # Upload transformed csv files to S3 bucket
+        # upload_result = self.upload_transformed_data_to_s3(
+        #     dir_csv_files=dir_csv_files,
+        #     s3_info=s3_info
+        # )
+        # if not upload_result:
+        #     return False
+        # Truncate tables
+        truncate_result = DB.truncate_tables(
+            tables=table_names
         )
+        if not truncate_result:
+            return False
+        # Update tables to database
+        logger.info('Starting update tables process...')
+        update_result = DB.update_tables(
+            dir_csv_files=dir_csv_files,
+            engine=engine
+        )
+        return update_result
 
     def download_from_s3(
         self,
         s3_info: dict,
         output_csv_path: str
-    ):
+    ) -> bool:
         """
         Download dataset from s3 bucket and stores in a given path.
 
