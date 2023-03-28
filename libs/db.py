@@ -1,6 +1,3 @@
-'''
-
-'''
 import pandas as pd
 import logging
 import logging.config
@@ -21,8 +18,7 @@ logger = logging.getLogger('DB')
 
 class DB:
     '''
-    This class groups actions or tasks in common
-    for the different scripts or classes.
+    Class used to connect to a database, truncate and update tables on it.
     '''
     def truncate_tables(
         tables: list,
@@ -67,6 +63,18 @@ class DB:
         dir_csv_files: str,
         engine: Engine = default_engine
     ) -> bool:
+        """
+        Look for csv files in a given directory, load them as DataFrames,
+        and upload them to a database as tables, given an Engine.
+
+        Args:
+            dir_csv_files (str): Directory with csv files inside.
+            engine (Engine, optional):
+                Engine used to connect with database. Defaults to default_engine.
+
+        Returns:
+            bool: True if updated sucessfully. False otherwise
+        """
         try:
             # Look for csv files in given directory
             for filename in os.listdir(dir_csv_files):
@@ -87,53 +95,3 @@ class DB:
             return False
         logger.info('All tables updated successfully on database!')
         return True
-
-    def execute_query(
-        table: str,
-        columns=None,
-        filters=None,
-        engine=default_engine
-    ) -> list | Exception:
-        """
-        Builds a simple query with given parameters,
-        executes it and return the results.
-
-        Args:
-            table (str): table name
-            columns (list): a list with column names. Defaults to None.
-            filters (str, optional): filters to apply
-                (WHERE clause without the WHERE keyword). Defaults to None.
-            engine (Engine, optional): Database connection engine.
-                Defaults to default_engine.
-
-        Returns:
-            list | Exception: a list of returned rows,
-                or captured exception if any.
-        """
-        # Builds the query with given parameters
-        # SELECT
-        query = "SELECT "
-        if columns:
-            for idx, col in enumerate(columns):
-                query += col
-                if idx < len(columns) - 1:
-                    query += ', '
-        else:
-            query += "* "
-        # FROM
-        query += f"FROM {table}"
-        # WHERE
-        if filters:
-            query += f" WHERE {filters}"
-        query += ";"
-
-        # Try to execute it, catching possible exceptions
-        try:
-            result = engine.execute(query)
-        except Exception as exc:
-            logger.error(f'Failed to execute query:{query}. Exception: {exc}')
-            return exc
-        else:
-            # If executed successfully, return fetched rows
-            logger.info(f'Query executed successfully: {query}')
-            return result.fetchall()

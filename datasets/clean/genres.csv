@@ -1,36 +1,36 @@
 id_genre,genre
-0,Action
-1,Adventure
-2,Simulation
-3,Web Publishing
-4,RPG
-5,Indie
-6,Sports
-7,Strategy
-8,Free to Play
-9,Casual
-10,Early Access
-11,Design & Illustration
-12,Education
-13,Game Development
-14,Massively Multiplayer
-15,Racing
-16,Animation & Modeling
-17,Audio Production
-18,Video Production
-19,Software Training
-20,Utilities
-21,Photo Editing
-22,Accounting
-23,Action Games
-24,Movie
-25,Documentary
-26,Episodic
-27,Short
-28,Tutorial
-29,360 V
-30,Violent
-31,Gore
-32,Sexual Content
-33,Nudity
+0,Strategy
+1,Action
+2,Adventure
+3,Casual
+4,Indie
+5,Free to Play
+6,Massively Multiplayer
+7,RPG
+8,Simulation
+9,Racing
+10,Sports
+11,Animation & Modeling
+12,Design & Illustration
+13,Photo Editing
+14,Utilities
+15,Early Access
+16,Education
+17,Software Training
+18,Web Publishing
+19,Audio Production
+20,Video Production
+21,Action Games
+22,Game Development
+23,Violent
+24,Gore
+25,Accounting
+26,Movie
+27,Documentary
+28,Episodic
+29,Short
+30,Tutorial
+31,360 V
+32,Nudity
+33,Sexual Content
 34,360 Video

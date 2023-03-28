@@ -22,8 +22,41 @@ class SteamETL:
     def __init__(self) -> None:
         pass
 
-    def extract():
-        result = run_scraping_process()
+    def extract(
+        self,
+        api_all_apps_list_url: str,
+        csv_path_all_apps_list: str,
+        all_apps_list_columns: list,
+        api_app_details_url: str,
+        csv_path_app_details: str,
+        app_details_columns: list,
+        s3_info: dict
+    ) -> bool:
+        """
+        Extraction process. Extract all apps ids from Steam API,
+        and then use those ids to extract app details from SteamSpy API.
+
+        Args:
+            api_all_apps_list_url (str): Steam API all apps url.
+            csv_path_all_apps_list (str): Path to store csv with all apps ids.
+            all_apps_list_columns (list): Columns to retrieve from all apps (appid, name).
+            api_app_details_url (str): SteamSpy API app details url.
+            csv_path_app_details (str): Path to store csv with app details.
+            app_details_columns (list): Columns to retrieve from app details.
+            s3_info (dict): S3 credentials to store raw data in a bucket.
+
+        Returns:
+            bool: True if extracted sucessfully. False otherwise.
+        """
+        result = run_scraping_process(
+            api_all_apps_list_url=api_all_apps_list_url,
+            csv_path_all_apps_list=csv_path_all_apps_list,
+            all_apps_list_columns=all_apps_list_columns,
+            api_app_details_url=api_app_details_url,
+            csv_path_app_details=csv_path_app_details,
+            app_details_columns=app_details_columns,
+            s3_info=s3_info
+        )
         return result
 
     def transform(
@@ -32,12 +65,24 @@ class SteamETL:
         output_csv_path: str,
         s3_info: dict
     ) -> bool:
-        # download_result = self.download_from_s3(
-        #     output_csv_path=input_csv_path,
-        #     s3_info=s3_info
-        # )
-        # if not download_result:
-        #     return False
+        """
+        Transformation process. Clean, transform and normalize raw data
+        and store results in S3 bucket and locally.
+
+        Args:
+            input_csv_path (str): Csv path with raw data.
+            output_csv_path (str): Path where store csv with clean data.
+            s3_info (dict): S3 credentials for store results in bucket.
+
+        Returns:
+            bool: True if transformed sucessfully. False otherwise.
+        """
+        download_result = self.download_from_s3(
+            output_csv_path=input_csv_path,
+            s3_info=s3_info
+        )
+        if not download_result:
+            return False
 
         # Read data from csv
         df_apps = pd.read_csv(input_csv_path)
@@ -59,9 +104,29 @@ class SteamETL:
             },
             inplace=True
         )
+        # Transform and rename time columns in minutes to hours
+        time_cols = ['average_forever', 'average_2weeks', 'median_forever', 'median_2weeks']
+        for time_col in time_cols:
+            df_apps[time_col] = df_apps[time_col].apply(
+                lambda x: round(x / 60.0, 2)
+            )
+            df_apps.rename(columns={time_col: f'{time_col}_hs'}, inplace=True)
+
+        # Transform owners column into a tuple column
+        df_apps['owners'] = df_apps['owners'].apply(
+            lambda x: self.transform_owners_column(str(x))
+        )
+        # Divide "owners" column into 2 new columns: "owners_min" and "owners_max"
+        df_apps = self.divide_tuple_column(
+            original_df=df_apps,
+            tuple_column='owners',
+            new_cols_names=['owners_min', 'owners_max']
+        )
 
         # Transform genre column into a list column
-        df_apps['genre'] = df_apps['genre'].apply(lambda x: self.transform_genres_column(str(x)))
+        df_apps['genre'] = df_apps['genre'].apply(
+            lambda x: self.transform_genres_column(str(x))
+        )
         # Normalize "genre" column into 2 new tables: "genres" and "apps_genres" (an intermediate table)
         df_apps, df_genres, df_apps_genres = self.normalize_list_column(
             original_df=df_apps,
@@ -72,7 +137,9 @@ class SteamETL:
         )
 
         # Transform languages column into a list column
-        df_apps['languages'] = df_apps['languages'].apply(lambda x: self.transform_languages_column(str(x)))
+        df_apps['languages'] = df_apps['languages'].apply(
+            lambda x: self.transform_languages_column(str(x))
+        )
         # Normalize "languages" column into 2 new tables: "languages" and "apps_languages" (an intermediate table)
         df_apps, df_languages, df_apps_languages = self.normalize_list_column(
             original_df=df_apps,
@@ -83,7 +150,9 @@ class SteamETL:
         )
 
         # Transform tags column into a list column
-        df_apps['tags'] = df_apps['tags'].apply(lambda x: self.transform_tags_column(str(x)))
+        df_apps['tags'] = df_apps['tags'].apply(
+            lambda x: self.transform_tags_column(str(x))
+        )
         # Normalize "tags" column into 2 new tables: "tags" and "apps_tags" (an intermediate table)
         df_apps, df_tags, df_apps_tags = self.normalize_json_column(
             original_df=df_apps,
@@ -92,6 +161,13 @@ class SteamETL:
             new_table_id_column='id_tag',
             new_table_json_column='tag'
         )
+
+        # Reorder columns before finish
+        df_apps = df_apps[[
+            'id_app', 'name', 'developer', 'publisher', 'score_rank',
+            'owners_min', 'owners_max', 'average_forever_hs', 'average_2weeks_hs', 'median_forever_hs',
+            'median_2weeks_hs', 'ccu', 'price_usd', 'initial_price_usd', 'discount'
+        ]]
 
         # Store transformed data to csv files
         dataframes_store_info = [
@@ -103,10 +179,10 @@ class SteamETL:
             (df_apps_tags, 'apps_tags'),
             (df_tags, 'tags')
         ]
-        # self.store_transformed_data_locally(
-        #     df_list=dataframes_store_info,
-        #     output_csv_path=output_csv_path
-        # )
+        self.store_transformed_data_locally(
+            df_list=dataframes_store_info,
+            output_csv_path=output_csv_path
+        )
         # Save table names
         global table_names
         table_names = [df[1] for df in dataframes_store_info]
@@ -117,13 +193,26 @@ class SteamETL:
         s3_info: dict,
         engine
     ) -> bool:
-        # # Upload transformed csv files to S3 bucket
-        # upload_result = self.upload_transformed_data_to_s3(
-        #     dir_csv_files=dir_csv_files,
-        #     s3_info=s3_info
-        # )
-        # if not upload_result:
-        #     return False
+        """
+        Loading process. Look for csv files in a directory,
+        upload them to S3 bucket,
+        and load those as tables to a database using given engine.
+
+        Args:
+            dir_csv_files (str): Directory wiht csv files inside.
+            s3_info (dict): S3 credentials
+            engine (SqlAlchemy.Engine): Engine used to connect with database.
+
+        Returns:
+            bool: True if loaded successfully. False otherwise.
+        """
+        # Upload transformed csv files to S3 bucket
+        upload_result = self.upload_transformed_data_to_s3(
+            dir_csv_files=dir_csv_files,
+            s3_info=s3_info
+        )
+        if not upload_result:
+            return False
         # Truncate tables
         truncate_result = DB.truncate_tables(
             tables=table_names
@@ -151,7 +240,7 @@ class SteamETL:
             output_csv_path (str): Local Path to store dataset.
 
         Returns:
-            _type_: True if downloaded successfully. False otherwise.
+            bool: True if downloaded successfully. False otherwise.
         """
         # Download file from s3 bucket
         s3 = boto3.client(
@@ -161,9 +250,11 @@ class SteamETL:
             aws_secret_access_key=s3_info["secret"]
         )
         try:
+            # Example s3 file key: "raw/steam_app_data.csv"
+            s3_file_key = '/'.join(output_csv_path.split('/')[-2:])
             s3.download_file(
                 Bucket=s3_info['bucket'],
-                Key=output_csv_path.split('/')[-1],
+                Key=s3_file_key,
                 Filename=output_csv_path
             )
         except Exception:
@@ -176,6 +267,33 @@ class SteamETL:
             f"Raw app data retrieved successfully from S3 bucket: {s3_info['bucket']} into {output_csv_path}."
         )
         return True
+
+    def divide_tuple_column(
+        self,
+        original_df: pd.DataFrame,
+        tuple_column: str,
+        new_cols_names: list
+    ) -> pd.DataFrame:
+        """
+        Divide a tuple column into multiple columns.
+
+        Args:
+            original_df (pd.DataFrame): DataFrame to work on.
+            tuple_column (str): Tuple column to be divided.
+            new_cols_names (list): Names of the new columns.
+
+        Returns:
+            pd.DataFrame: Transformed DataFrame.
+        """
+        # Create a copy of original dataframe
+        df = original_df.copy()
+        # Create new columns
+        for idx, new_col_name in enumerate(new_cols_names):
+            df[new_col_name] = df[tuple_column].apply(lambda x: x[idx])
+        # Remove tuple column
+        df.drop(columns=tuple_column, inplace=True)
+        # Return transformed df
+        return df
 
     def normalize_list_column(
         self,
@@ -297,6 +415,24 @@ class SteamETL:
 
         # Return 3 dataframes in a tuple
         return df, df_new_table, df_intermediate_table
+
+    def transform_owners_column(
+            self,
+            col: str
+    ) -> tuple:
+        """
+        Divide interval owners column into 2 new min, max columns.
+
+        Args:
+            col (str): A string column with values in a interval format.
+
+        Returns:
+            tuple: Return min and max values in a tuple
+        """
+        # Make column a tuple and remove commas from numbers
+        owners = col.split(' .. ')
+        owners = [owner.replace(',', '') for owner in owners]
+        return owners
 
     def transform_genres_column(
         self,
@@ -449,7 +585,7 @@ class SteamETL:
                 )
                 # Log
                 logger.info(
-                    f"{s3_info['file_key']} successfully uploaded to S3 bucket: {s3_info['bucket']}"
+                    f"{s3_file_key} successfully uploaded to S3 bucket: {s3_info['bucket']}"
                 )
         except Exception:
             logger.error(
