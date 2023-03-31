@@ -104,6 +104,9 @@ class SteamETL:
             },
             inplace=True
         )
+        # Remove games with a price higher than 1500 usd (outliers)
+        df_apps = df_apps[df_apps['price_usd'] <= 1500.0]
+
         # Transform and rename time columns in minutes to hours
         time_cols = ['average_forever', 'average_2weeks', 'median_forever', 'median_2weeks']
         for time_col in time_cols:
@@ -164,8 +167,8 @@ class SteamETL:
 
         # Reorder columns before finish
         df_apps = df_apps[[
-            'id_app', 'name', 'developer', 'publisher', 'score_rank',
-            'owners_min', 'owners_max', 'average_forever_hs', 'average_2weeks_hs', 'median_forever_hs',
+            'id_app', 'name', 'developer', 'publisher', 'owners_min', 'owners_max',
+            'average_forever_hs', 'average_2weeks_hs', 'median_forever_hs',
             'median_2weeks_hs', 'ccu', 'price_usd', 'initial_price_usd', 'discount'
         ]]
 

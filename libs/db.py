@@ -12,7 +12,7 @@ from libs.config import settings
 default_engine = create_engine(settings.DATABASE_URL)
 
 # Logging config
-logging.config.fileConfig('config_logs.conf')
+#logging.config.fileConfig('config_logs.conf')
 logger = logging.getLogger('DB')
 
 
@@ -95,3 +95,28 @@ class DB:
             return False
         logger.info('All tables updated successfully on database!')
         return True
+
+    def execute_query(
+        query: str,
+        engine=default_engine
+    ) -> list:
+        """
+        Execute given query on database and return results in a list.
+        Args:
+            query (str): query to execute.
+            engine (Engine, optional): Database connection engine.
+                Defaults to default_engine.
+        Returns:
+            list | False: a list of returned rows or False if an error ocurred.
+        """
+        # Try to execute query, catching possible exceptions
+        try:
+            with engine.connect() as connection:
+                result = connection.execute(text(query))
+        except Exception:
+            logger.error(f'Failed to execute query:{query}.', exc_info=True)
+            return False
+        else:
+            # If executed successfully, return fetched rows
+            logger.info(f'Query executed successfully: {query}')
+            return result.fetchall()
