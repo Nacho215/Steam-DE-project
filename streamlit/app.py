@@ -19,6 +19,7 @@ from libs.db import default_engine as engine
 # Constant definitions
 DIR_CLEAN_DATASETS = '../datasets/clean'
 MAX_ROWS_PREVIEW_TABLES = 100
+plotly_color_palette = px.colors.sequential.Greens_r
 
 
 # Methods
@@ -171,13 +172,15 @@ with st.sidebar:
         [
             "🔍 Find your game!",
             "🎭 Genres",
-            "📐 Tables structure"
+            "🈯 Languages",
+            "🔖 Tags",
+            "🔨 Tables structure"
         ],
         default_index=1
     )
 # Tables structure Menu
-if selected == "📐 Tables structure":
-    st.header("📐 Tables structure")
+if selected == "🔨 Tables structure":
+    st.header("🔨 Tables structure")
     st.text("""These are the database tables structure.\nMax rows per table are capped at 100 for better performance.""")
     apps_container = st.container()
     c1, c2, c3 = st.columns(3)
@@ -301,6 +304,8 @@ elif selected == "🔍 Find your game!":
         c1.subheader("👇 Here you can post-filter on the query results")
 # Genres Menu
 elif selected == "🎭 Genres":
+    st.header("🎭 Genres Analysis")
+    st.text("Here you can explore which are the most popular genres based on some filter, or maybe do some specific genre analysis.")
     with st.container():
         # Columns
         c1, c2 = st.columns([3, 1])
@@ -341,41 +346,48 @@ elif selected == "🎭 Genres":
                 text(query),
                 engine.connect()
             ).sort_values('app_count')
-            chart = px.bar(df, x='app_count', y='genre', orientation='h')
+            chart = px.bar(
+                df,
+                x='app_count',
+                y='genre',
+                orientation='h',
+                color_discrete_sequence=plotly_color_palette
+            )
             c1.plotly_chart(chart)
         except Exception as e:
             st.text(e)
+        # Specific Genre Analysis
         with st.container():
             # Filters
-            st.subheader('Specific Genres Analysis')
-            selected_genres = st.multiselect(
-                'Show only this genres:',
+            st.subheader('Specific Genre Analysis')
+            selected_genre = st.selectbox(
+                'Genre:',
                 genres_list
             )
             # Columns
             c1, c2 = st.columns([2, 2])
-            # OWNERS BY GENRE
-            c1.subheader('Owners by Genre')
-            # PRICE DISTRIBUTION BY GENRE
-            c2.subheader('Price distribution by Genre')
+            # Subheaders
+            c1.subheader('Top 10 tags for this Genre')
+            c2.subheader('Price distribution for this Genre')
             # Where clause
             where_clause = ''
             # Only plot if a genre is selected
-            if selected_genres:
-                genres = ",".join(f"'{genre}'" for genre in selected_genres)
-                where_clause += f''' WHERE genres.genre IN ({genres})'''
-                # Query
+            if selected_genre:
+                # TOP 10 TAGS FOR THIS GENRE
                 query = f"""
-                            SELECT genres.genre,
-                            SUM(apps.owners_min) AS min_owners,
-                            SUM(apps.owners_max) AS max_owners
-                            FROM genres
-                            JOIN apps_genres ON genres.id_genre = apps_genres.id_genre
-                            JOIN apps ON apps.id_app = apps_genres.id_app
-                            {where_clause}
-                            GROUP BY genres.genre
-                            ORDER BY max_owners DESC
-                            LIMIT {n_genres};"""
+                            SELECT t.tag, COUNT(*) as num_apps
+                            from tags t
+                            JOIN apps_tags at2  ON t.id_tag  = at2.id_tag 
+                            where at2.id_app in (
+                                select ag.id_app
+                                from apps a
+                                join apps_genres ag on ag.id_app = a.id_app
+                                join genres g on g.id_genre = ag.id_genre  
+                                where g.genre  = '{selected_genre}'
+                            )
+                            GROUP BY t.tag
+                            ORDER BY num_apps DESC
+                            LIMIT 10;"""
                 # Query the database and plot
                 try:
                     df = pd.read_sql(
@@ -383,22 +395,25 @@ elif selected == "🎭 Genres":
                         engine.connect()
                     )
                     # Configurar el gráfico
-                    fig = go.Figure(data=[
-                        go.Bar(name='Min Owners', x=df['genre'], y=df['min_owners']),
-                        go.Bar(name='Max Owners', x=df['genre'], y=df['max_owners'])
-                    ])
-                    fig.update_layout(barmode='stack')#, height=500, width=800)
+                    fig = px.pie(
+                        df,
+                        values='num_apps',
+                        names='tag',
+                        color_discrete_sequence=plotly_color_palette
+                    )
+                    fig.update_traces(textposition='inside', textinfo='percent+label')
+                    fig.update_layout(showlegend=False)
                     # Mostrar el gráfico
-                    c1.plotly_chart(fig)
+                    c1.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     c1.text(e)
-                # Query
+                # PRICE DISTRIBUTION FOR THIS GENRE
                 query = f"""
-                            SELECT genre, price_usd
-                            FROM apps
-                            JOIN apps_genres ON apps.id_app = apps_genres.id_app
-                            JOIN genres ON apps_genres.id_genre = genres.id_genre
-                            {where_clause}
+                            SELECT a.price_usd
+                            FROM apps a
+                            INNER JOIN apps_genres ag  ON a.id_app = ag.id_app
+                            INNER JOIN genres g ON ag.id_genre  = g.id_genre 
+                            WHERE g.genre  = '{selected_genre}'
                             """
                 # Query the database and plot
                 try:
@@ -406,15 +421,267 @@ elif selected == "🎭 Genres":
                         text(query),
                         engine.connect()
                     )
-                    boxplot = px.box(
+                    # Crear un histograma de frecuencia de los precios utilizando Plotly
+                    fig = px.histogram(
                         df,
-                        x='price_usd',
-                        y='genre',
-                        orientation='h'
+                        nbins=20,
+                        color_discrete_sequence=plotly_color_palette
                     )
-                    c2.plotly_chart(boxplot)
+                    fig.update_layout(
+                        xaxis_title="USD Price",
+                        yaxis_title="Frequency",
+                        showlegend=False
+                    )
+                    # Mostrar el gráfico en la página de Streamlit
+                    c2.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     c2.text(e)
-            else:
-                c1.text('Please select at least 1 Genre')
-                c2.text('Please select at least 1 Genre')
+# Languages Menu
+elif selected == "🈯 Languages":
+    st.header("🈯 Languages Analysis")
+    st.text("Here you can explore which are the most popular languages based on some filter, or maybe do some specific language analysis.")
+    with st.container():
+        # Columns
+        c1, c2 = st.columns([3, 1])
+        # MOST POPULAR LANGUAGES
+        c1.subheader('Most popular Languages')
+        # Filters
+        c2.subheader('Filters')
+        n_languages = c2.slider(
+            'Top N° languages:',
+            min_value=1,
+            max_value=20,
+            value=10,
+            step=1
+        )
+        price_interval = c2.slider(
+            'Price in USD:',
+            min_value=0,
+            max_value=1500,
+            value=(0, 1500),
+            step=5
+        )
+        # Where clause
+        where_clause = 'WHERE'
+        where_clause += F' a.price_usd BETWEEN {price_interval[0]} AND {price_interval[1]}'
+        # Query
+        query = f"""
+                    SELECT l.language, COUNT(al.id_app) AS app_count
+                    FROM languages l
+                    INNER JOIN apps_languages al ON l.id_language = al.id_language
+                    JOIN apps a ON a.id_app = al.id_app
+                    {where_clause}
+                    GROUP BY l.language
+                    ORDER BY app_count DESC
+                    LIMIT {n_languages};"""
+        # Query the database and plot
+        try:
+            df = pd.read_sql(
+                text(query),
+                engine.connect()
+            ).sort_values('app_count')
+            chart = px.bar(df, x='app_count', y='language', orientation='h')
+            c1.plotly_chart(chart)
+        except Exception as e:
+            st.text(e)
+        # Specific Language Analysis
+        with st.container():
+            # Filters
+            st.subheader('Specific Language Analysis')
+            selected_language = st.selectbox(
+                'Language:',
+                languages_list
+            )
+            # Columns
+            c1, c2 = st.columns([2, 2])
+            # Subheaders
+            c1.subheader('Top 10 Genres for this Language')
+            c2.subheader('Price distribution for this Language')
+            # Only plot if a language is selected
+            if selected_language:
+                # TOP 10 GENRES FOR THIS LANGUAGE
+                query = f"""
+                            SELECT genres.genre, COUNT(*) as num_apps
+                            from genres
+                            JOIN apps_genres ON genres.id_genre = apps_genres.id_genre
+                            where apps_genres.id_app in (
+                                select al.id_app
+                                from apps a
+                                join apps_languages al on al.id_app = a.id_app
+                                join languages l on l.id_language = al.id_language 
+                                where l."language" = '{selected_language}'
+                            )
+                            GROUP BY genres.genre
+                            ORDER BY num_apps DESC
+                            LIMIT 10;"""
+                # Query the database and plot
+                try:
+                    df = pd.read_sql(
+                        text(query),
+                        engine.connect()
+                    )
+                    # Configurar el gráfico
+                    fig = px.pie(
+                        df,
+                        values='num_apps',
+                        names='genre'
+                    )
+                    fig.update_traces(textposition='inside', textinfo='percent+label')
+                    fig.update_layout(showlegend=False)
+                    # Mostrar el gráfico
+                    c1.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    c1.text(e)
+                # FREE VS PAID APPS FOR THIS LANGUAGE
+                query = f"""
+                            SELECT a.price_usd
+                            FROM apps a
+                            INNER JOIN apps_languages al  ON a.id_app = al.id_app
+                            INNER JOIN languages l  ON al.id_language  = l.id_language 
+                            WHERE l."language"  = '{selected_language}'
+                            """
+                # Query the database and plot
+                try:
+                    df = pd.read_sql(
+                        text(query),
+                        engine.connect()
+                    )
+                    # Crear un histograma de frecuencia de los precios utilizando Plotly
+                    fig = px.histogram(
+                        df,
+                        nbins=20
+                    )
+                    fig.update_layout(
+                        xaxis_title="USD Price",
+                        yaxis_title="Frequency",
+                        showlegend=False
+                    )
+                    # Mostrar el gráfico en la página de Streamlit
+                    c2.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    c2.text(e)
+# Tags Menu
+elif selected == "🔖 Tags":
+    st.header("🔖 Tags Analysis")
+    st.text("Here you can explore which are the most popular tags based on some filter, or maybe do some specific tag analysis.")
+    with st.container():
+        # Columns
+        c1, c2 = st.columns([3, 1])
+        # MOST POPULAR TAGS
+        c1.subheader('Most popular Tags')
+        # Filters
+        c2.subheader('Filters')
+        n_tags = c2.slider(
+            'Top N° tags:',
+            min_value=1,
+            max_value=20,
+            value=10,
+            step=1
+        )
+        price_interval = c2.slider(
+            'Price in USD:',
+            min_value=0,
+            max_value=1500,
+            value=(0, 1500),
+            step=5
+        )
+        # Where clause
+        where_clause = 'WHERE'
+        where_clause += F' a.price_usd BETWEEN {price_interval[0]} AND {price_interval[1]}'
+        # Query
+        query = f"""
+                    SELECT t.tag, COUNT(at.id_app) AS app_count
+                    FROM tags t
+                    INNER JOIN apps_tags at ON t.id_tag = at.id_tag
+                    JOIN apps a ON a.id_app = at.id_app
+                    {where_clause}
+                    GROUP BY t.tag
+                    ORDER BY app_count DESC
+                    LIMIT {n_tags};"""
+        # Query the database and plot
+        try:
+            df = pd.read_sql(
+                text(query),
+                engine.connect()
+            ).sort_values('app_count')
+            chart = px.bar(df, x='app_count', y='tag', orientation='h')
+            c1.plotly_chart(chart)
+        except Exception as e:
+            st.text(e)
+        # Specific Language Analysis
+        with st.container():
+            # Filters
+            st.subheader('Specific Tag Analysis')
+            selected_tag = st.selectbox(
+                'Tag:',
+                tags_list
+            )
+            # Columns
+            c1, c2 = st.columns(2)
+            # Subheaders
+            c1.subheader('Top 10 Genres for this Tag')
+            c2.subheader('Price distribution for this Tag')
+            # Only plot if a tag is selected
+            if selected_tag:
+                # TOP 10 GENRES FOR THIS TAG
+                query = f"""
+                            SELECT genres.genre, COUNT(*) as num_apps
+                            FROM apps_tags
+                            INNER JOIN apps_genres ON apps_tags.id_app = apps_genres.id_app
+                            INNER JOIN genres ON apps_genres.id_genre = genres.id_genre
+                            WHERE apps_tags.id_app in (
+                                select id_app
+                                from apps_tags "at"
+                                join tags t on t.id_tag = "at".id_tag
+                                where t.tag = '{selected_tag}'
+                            )
+                            GROUP BY genres.genre
+                            ORDER BY num_apps desc
+                            limit 10;
+                            """
+                # Query the database and plot
+                try:
+                    df = pd.read_sql(
+                        text(query),
+                        engine.connect()
+                    )
+                    # Configurar el gráfico
+                    fig = px.pie(
+                        df,
+                        values='num_apps',
+                        names='genre'
+                    )
+                    fig.update_traces(textposition='inside', textinfo='percent+label')
+                    fig.update_layout(showlegend=False)
+                    # Mostrar el gráfico
+                    c1.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    c1.text(e)
+                # PRICE DISTRIBUTION FOR THIS TAG
+                query = f"""
+                            SELECT apps.price_usd
+                            FROM apps
+                            INNER JOIN apps_tags ON apps.id_app = apps_tags.id_app
+                            INNER JOIN tags ON apps_tags.id_tag = tags.id_tag
+                            WHERE tags.tag = '{selected_tag}'
+                            """
+                # Query the database and plot
+                try:
+                    df = pd.read_sql(
+                        text(query),
+                        engine.connect()
+                    )
+                    # Crear un histograma de frecuencia de los precios utilizando Plotly
+                    fig = px.histogram(
+                        df,
+                        nbins=20,
+                    )
+                    fig.update_layout(
+                        xaxis_title="USD Price",
+                        yaxis_title="Frequency",
+                        showlegend=False
+                    )
+                    # Mostrar el gráfico en la página de Streamlit
+                    c2.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    c2.text(e)
