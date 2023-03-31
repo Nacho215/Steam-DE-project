@@ -209,9 +209,9 @@ elif selected == "🔍 Find your game!":
         # Columns
         c1, c2 = st.columns([3, 1])
         # Subheader
-        c1.subheader("Filtered games")
+        c1.subheader("📄 Filtered games")
         # Filters
-        c2.subheader('Filters')
+        c2.subheader('🎚️ Filters')
         n_games = c2.slider(
             'Top N° Games:',
             min_value=1,
@@ -310,7 +310,7 @@ elif selected == "🎭 Genres":
         # Columns
         c1, c2 = st.columns([3, 1])
         # Filters
-        c2.subheader('Filters')
+        c2.subheader('🎚️ Filters')
         n_genres = c2.slider(
             'Top N° genres:',
             min_value=1,
@@ -329,7 +329,7 @@ elif selected == "🎭 Genres":
         where_clause = 'WHERE'
         where_clause += F' a.price_usd BETWEEN {price_interval[0]} AND {price_interval[1]}'
         # MOST POPULAR GENRES
-        c1.subheader('Most popular Genres')
+        c1.subheader('🏅 Most popular Genres')
         # Query
         query = f"""
                     SELECT g.genre, COUNT(ag.id_app) AS app_count
@@ -359,7 +359,7 @@ elif selected == "🎭 Genres":
         # Specific Genre Analysis
         with st.container():
             # Filters
-            st.subheader('Specific Genre Analysis')
+            st.subheader('🎯 Specific Genre Analysis')
             selected_genre = st.selectbox(
                 'Genre:',
                 genres_list
@@ -367,8 +367,8 @@ elif selected == "🎭 Genres":
             # Columns
             c1, c2 = st.columns([2, 2])
             # Subheaders
-            c1.subheader('Top 10 tags for this Genre')
-            c2.subheader('Price distribution for this Genre')
+            c1.subheader('🔖 Top 10 tags for this Genre')
+            c2.subheader('💰 Price distribution for this Genre')
             # Where clause
             where_clause = ''
             # Only plot if a genre is selected
@@ -444,9 +444,9 @@ elif selected == "🈯 Languages":
         # Columns
         c1, c2 = st.columns([3, 1])
         # MOST POPULAR LANGUAGES
-        c1.subheader('Most popular Languages')
+        c1.subheader('🏅 Most popular Languages')
         # Filters
-        c2.subheader('Filters')
+        c2.subheader('🎚️ Filters')
         n_languages = c2.slider(
             'Top N° languages:',
             min_value=1,
@@ -480,14 +480,20 @@ elif selected == "🈯 Languages":
                 text(query),
                 engine.connect()
             ).sort_values('app_count')
-            chart = px.bar(df, x='app_count', y='language', orientation='h')
+            chart = px.bar(
+                df,
+                x='app_count',
+                y='language',
+                orientation='h',
+                color_discrete_sequence=plotly_color_palette
+            )
             c1.plotly_chart(chart)
         except Exception as e:
             st.text(e)
         # Specific Language Analysis
         with st.container():
             # Filters
-            st.subheader('Specific Language Analysis')
+            st.subheader('🎯 Specific Language Analysis')
             selected_language = st.selectbox(
                 'Language:',
                 languages_list
@@ -495,8 +501,8 @@ elif selected == "🈯 Languages":
             # Columns
             c1, c2 = st.columns([2, 2])
             # Subheaders
-            c1.subheader('Top 10 Genres for this Language')
-            c2.subheader('Price distribution for this Language')
+            c1.subheader('🎭 Top 10 Genres for this Language')
+            c2.subheader('💰 Price distribution for this Language')
             # Only plot if a language is selected
             if selected_language:
                 # TOP 10 GENRES FOR THIS LANGUAGE
@@ -524,7 +530,8 @@ elif selected == "🈯 Languages":
                     fig = px.pie(
                         df,
                         values='num_apps',
-                        names='genre'
+                        names='genre',
+                        color_discrete_sequence=plotly_color_palette
                     )
                     fig.update_traces(textposition='inside', textinfo='percent+label')
                     fig.update_layout(showlegend=False)
@@ -532,7 +539,7 @@ elif selected == "🈯 Languages":
                     c1.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     c1.text(e)
-                # FREE VS PAID APPS FOR THIS LANGUAGE
+                # PRICE DISTRIBUTION FOR THIS LANGUAGE
                 query = f"""
                             SELECT a.price_usd
                             FROM apps a
@@ -549,7 +556,8 @@ elif selected == "🈯 Languages":
                     # Crear un histograma de frecuencia de los precios utilizando Plotly
                     fig = px.histogram(
                         df,
-                        nbins=20
+                        nbins=20,
+                        color_discrete_sequence=plotly_color_palette
                     )
                     fig.update_layout(
                         xaxis_title="USD Price",
@@ -568,9 +576,9 @@ elif selected == "🔖 Tags":
         # Columns
         c1, c2 = st.columns([3, 1])
         # MOST POPULAR TAGS
-        c1.subheader('Most popular Tags')
+        c1.subheader('🏅 Most popular Tags')
         # Filters
-        c2.subheader('Filters')
+        c2.subheader('🎚️ Filters')
         n_tags = c2.slider(
             'Top N° tags:',
             min_value=1,
@@ -604,7 +612,13 @@ elif selected == "🔖 Tags":
                 text(query),
                 engine.connect()
             ).sort_values('app_count')
-            chart = px.bar(df, x='app_count', y='tag', orientation='h')
+            chart = px.bar(
+                df,
+                x='app_count',
+                y='tag',
+                orientation='h',
+                color_discrete_sequence=plotly_color_palette
+            )
             c1.plotly_chart(chart)
         except Exception as e:
             st.text(e)
@@ -619,8 +633,8 @@ elif selected == "🔖 Tags":
             # Columns
             c1, c2 = st.columns(2)
             # Subheaders
-            c1.subheader('Top 10 Genres for this Tag')
-            c2.subheader('Price distribution for this Tag')
+            c1.subheader('🎭 Top 10 Genres for this Tag')
+            c2.subheader('💰 Price distribution for this Tag')
             # Only plot if a tag is selected
             if selected_tag:
                 # TOP 10 GENRES FOR THIS TAG
@@ -649,7 +663,8 @@ elif selected == "🔖 Tags":
                     fig = px.pie(
                         df,
                         values='num_apps',
-                        names='genre'
+                        names='genre',
+                        color_discrete_sequence=plotly_color_palette
                     )
                     fig.update_traces(textposition='inside', textinfo='percent+label')
                     fig.update_layout(showlegend=False)
@@ -675,6 +690,7 @@ elif selected == "🔖 Tags":
                     fig = px.histogram(
                         df,
                         nbins=20,
+                        color_discrete_sequence=plotly_color_palette
                     )
                     fig.update_layout(
                         xaxis_title="USD Price",
