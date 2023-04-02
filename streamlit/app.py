@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-import altair as alt
 from pandas.api.types import (
     is_categorical_dtype,
     is_datetime64_any_dtype,
@@ -27,6 +25,18 @@ def get_preview_tables(
     dir_csv_files: str,
     sample_size: int
 ) -> dict:
+    """
+    Load csv files from a given directory as dataframes,
+    cap maximum rows to a given size, and return them in a dictionary
+    with table names.
+
+    Args:
+        dir_csv_files (str): Directory where csv files are stored.
+        sample_size (int): Maximum rows to retrieve.
+
+    Returns:
+        dict: Tables names as keys, and tables (dataFrames) as values.
+    """
     # Tables info
     tables_info = {}
     # Look for csv files in given directory
@@ -52,6 +62,17 @@ def get_unique_values_list(
     column: str,
     table: str
 ) -> list:
+    """
+    Get all unique values from a column in a given table.
+
+    Args:
+        engine (SqlAlchemy.Engine): Engine for database connection.
+        column (str): column to retrieve unique values.
+        table (str): table where column is located.
+
+    Returns:
+        list: unique values for that column in that table.
+    """
     df_unique_values = pd.read_sql(
         text(
             f'SELECT DISTINCT {column} FROM {table};'
@@ -64,8 +85,10 @@ def get_unique_values_list(
 def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     Adds a UI on top of a dataframe to let viewers filter columns
+
     Args:
         df (pd.DataFrame): Original dataframe
+
     Returns:
         pd.DataFrame: Filtered dataframe
     """
@@ -178,10 +201,15 @@ with st.sidebar:
         ],
         default_index=1
     )
+
 # Tables structure Menu
 if selected == "🔨 Tables structure":
+    # Title and description
     st.header("🔨 Tables structure")
     st.text("""These are the database tables structure.\nMax rows per table are capped at 100 for better performance.""")
+    
+    # Create a container for apps table
+    # and 3 columns for other tables
     apps_container = st.container()
     c1, c2, c3 = st.columns(3)
     column_count = 1
@@ -203,8 +231,10 @@ if selected == "🔨 Tables structure":
             column_count = (column_count + 1) if (column_count < 3) else 1
 # Trending Menu
 elif selected == "🔍 Find your game!":
+    # Title and description
     st.header("🔍 Find your game!")
     st.text("Here you can search for your ideal game!\nFilter for a genre, a developer you are fan of, a specifig language or maybe just a nice single player game with discount.")
+
     with st.container():
         # Columns
         c1, c2 = st.columns([3, 1])
@@ -304,8 +334,10 @@ elif selected == "🔍 Find your game!":
         c1.subheader("👇 Here you can post-filter on the query results")
 # Genres Menu
 elif selected == "🎭 Genres":
+    # Title and description
     st.header("🎭 Genres Analysis")
     st.text("Here you can explore which are the most popular genres based on some filter, or maybe do some specific genre analysis.")
+    
     with st.container():
         # Columns
         c1, c2 = st.columns([3, 1])
@@ -394,7 +426,6 @@ elif selected == "🎭 Genres":
                         text(query),
                         engine.connect()
                     )
-                    # Configurar el gráfico
                     fig = px.pie(
                         df,
                         values='num_apps',
@@ -403,7 +434,6 @@ elif selected == "🎭 Genres":
                     )
                     fig.update_traces(textposition='inside', textinfo='percent+label')
                     fig.update_layout(showlegend=False)
-                    # Mostrar el gráfico
                     c1.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     c1.text(e)
@@ -421,7 +451,6 @@ elif selected == "🎭 Genres":
                         text(query),
                         engine.connect()
                     )
-                    # Crear un histograma de frecuencia de los precios utilizando Plotly
                     fig = px.histogram(
                         df,
                         nbins=20,
@@ -432,14 +461,15 @@ elif selected == "🎭 Genres":
                         yaxis_title="Frequency",
                         showlegend=False
                     )
-                    # Mostrar el gráfico en la página de Streamlit
                     c2.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     c2.text(e)
 # Languages Menu
 elif selected == "🈯 Languages":
+    # Title and description
     st.header("🈯 Languages Analysis")
     st.text("Here you can explore which are the most popular languages based on some filter, or maybe do some specific language analysis.")
+
     with st.container():
         # Columns
         c1, c2 = st.columns([3, 1])
@@ -526,7 +556,6 @@ elif selected == "🈯 Languages":
                         text(query),
                         engine.connect()
                     )
-                    # Configurar el gráfico
                     fig = px.pie(
                         df,
                         values='num_apps',
@@ -535,7 +564,6 @@ elif selected == "🈯 Languages":
                     )
                     fig.update_traces(textposition='inside', textinfo='percent+label')
                     fig.update_layout(showlegend=False)
-                    # Mostrar el gráfico
                     c1.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     c1.text(e)
@@ -553,7 +581,6 @@ elif selected == "🈯 Languages":
                         text(query),
                         engine.connect()
                     )
-                    # Crear un histograma de frecuencia de los precios utilizando Plotly
                     fig = px.histogram(
                         df,
                         nbins=20,
@@ -564,14 +591,15 @@ elif selected == "🈯 Languages":
                         yaxis_title="Frequency",
                         showlegend=False
                     )
-                    # Mostrar el gráfico en la página de Streamlit
                     c2.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     c2.text(e)
 # Tags Menu
 elif selected == "🔖 Tags":
+    # Title and description
     st.header("🔖 Tags Analysis")
     st.text("Here you can explore which are the most popular tags based on some filter, or maybe do some specific tag analysis.")
+
     with st.container():
         # Columns
         c1, c2 = st.columns([3, 1])
@@ -659,7 +687,6 @@ elif selected == "🔖 Tags":
                         text(query),
                         engine.connect()
                     )
-                    # Configurar el gráfico
                     fig = px.pie(
                         df,
                         values='num_apps',
@@ -668,7 +695,6 @@ elif selected == "🔖 Tags":
                     )
                     fig.update_traces(textposition='inside', textinfo='percent+label')
                     fig.update_layout(showlegend=False)
-                    # Mostrar el gráfico
                     c1.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     c1.text(e)
@@ -686,7 +712,6 @@ elif selected == "🔖 Tags":
                         text(query),
                         engine.connect()
                     )
-                    # Crear un histograma de frecuencia de los precios utilizando Plotly
                     fig = px.histogram(
                         df,
                         nbins=20,
@@ -697,7 +722,6 @@ elif selected == "🔖 Tags":
                         yaxis_title="Frequency",
                         showlegend=False
                     )
-                    # Mostrar el gráfico en la página de Streamlit
                     c2.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     c2.text(e)
