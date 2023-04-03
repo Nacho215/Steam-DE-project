@@ -199,7 +199,7 @@ with st.sidebar:
             "🔖 Tags",
             "🔨 Tables structure"
         ],
-        default_index=1
+        default_index=0
     )
 
 # Tables structure Menu
