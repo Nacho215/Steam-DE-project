@@ -22,16 +22,15 @@ plotly_color_palette = px.colors.sequential.Greens_r
 
 # Methods
 def get_preview_tables(
-    dir_csv_files: str,
+    engine: str,
     sample_size: int
 ) -> dict:
     """
-    Load csv files from a given directory as dataframes,
-    cap maximum rows to a given size, and return them in a dictionary
-    with table names.
+    Query 'sample_size' rows from all tables in database
+    and returns them on a dictionary.
 
     Args:
-        dir_csv_files (str): Directory where csv files are stored.
+        engine (SqlAlchemy.Engine): Engine used to connect with database.
         sample_size (int): Maximum rows to retrieve.
 
     Returns:
@@ -39,21 +38,25 @@ def get_preview_tables(
     """
     # Tables info
     tables_info = {}
-    # Look for csv files in given directory
-    for filename in os.listdir(dir_csv_files):
-        # Full file path
-        file_path = f'{dir_csv_files}/{filename}'
-        df_name = filename.split('.')[0]
-        # Read only 'sample_size' random rows from each dataframe
-        # or the entire ordered dataframe if it has
-        # less than 'sample_size' rows
-        df = pd.read_csv(file_path)
-        if len(df) < sample_size:
-            df_sample = df
-        else:
-            df_sample = df.sample(sample_size)
-        # Store table name an data in a dictionary
-        tables_info[df_name] = df_sample
+    # Get all table names
+    result = pd.read_sql(
+        text(
+            """SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema='public'
+            AND table_type='BASE TABLE';"""
+        ),
+        engine.connect()
+    )
+    tables_names = [x[0] for x in result.values]
+    # Get 'sample size' rows max for each table
+    for table_name in tables_names:
+        df_table = pd.read_sql(
+            text(f"SELECT * FROM {table_name} LIMIT {sample_size};"),
+            engine.connect()
+        )
+        tables_info[table_name] = df_table
+    # Return tables names and samples in a dictionary
     return tables_info
 
 
@@ -161,8 +164,8 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 # Load preview tables
 tables_info = get_preview_tables(
-    DIR_CLEAN_DATASETS,
-    MAX_ROWS_PREVIEW_TABLES
+    engine=engine,
+    sample_size=MAX_ROWS_PREVIEW_TABLES
 )
 # Load tags list
 tags_list = get_unique_values_list(
