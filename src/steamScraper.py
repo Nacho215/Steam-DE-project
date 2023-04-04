@@ -94,6 +94,10 @@ def store_all_apps_list(
     """
     # Store csv file locally
     try:
+        # Make dir if not exists
+        csv_dir = '/'.join(csv_path.split('/')[:-1])
+        if not os.path.exists(csv_dir):
+            os.makedirs(csv_dir)
         with open(csv_path, "w", newline='', encoding='utf-8') as app_data_file:
             file_writer = csv.DictWriter(
                 app_data_file,
@@ -257,6 +261,10 @@ def store_app_details(
         bool: True if stored successfully. False otherwise.
     """
     try:
+        # Make dir if not exists
+        csv_dir = '/'.join(csv_path.split('/')[:-1])
+        if not os.path.exists(csv_dir):
+            os.makedirs(csv_dir)
         with open(csv_path, "a", encoding='utf8') as app_data_file:
             file_writer = csv.DictWriter(
                 app_data_file,
@@ -405,16 +413,16 @@ def run_scraping_process(
     Returns:
         bool: True if scraped sucessfully. False otherwise.
     """
-    # # Scrape all apps list
-    # logger.info("Starting scraping process for apps list...")
-    # result_first_scraping = scrape_all_apps_list(
-    #     api_url=api_all_apps_list_url,
-    #     csv_path=csv_path_all_apps_list,
-    #     columns=all_apps_list_columns,
-    #     s3_info=s3_info
-    # )
-    # if not result_first_scraping:
-    #     return False
+    # Scrape all apps list
+    logger.info("Starting scraping process for apps list...")
+    result_first_scraping = scrape_all_apps_list(
+        api_url=api_all_apps_list_url,
+        csv_path=csv_path_all_apps_list,
+        columns=all_apps_list_columns,
+        s3_info=s3_info
+    )
+    if not result_first_scraping:
+        return False
     logger.info("Starting scraping process for apps details...")
     result_second_scraping = asyncio.run(
         scrape_app_details(

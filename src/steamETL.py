@@ -543,6 +543,9 @@ class SteamETL:
         """
         # Store csv files with names given in df_list
         try:
+            # Make dir if not exists
+            if not os.path.exists(output_csv_path):
+                os.makedirs(output_csv_path)
             for df, name in df_list:
                 path = f"{output_csv_path}/{name}.csv"
                 df.to_csv(
