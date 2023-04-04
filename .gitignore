@@ -14,9 +14,9 @@ keys/airflow-credentials.txt
 src/steam_ETL_dag.py
 keys/postgres-credentials.txt
 streamlit/app_2.py
-datasets/clean/apps_genres.csv
-datasets/clean/apps_languages.csv
-datasets/clean/apps_tags.csv
-datasets/clean/apps.csv
 notebooks/EDA.ipynb
 keys/ec2-steam-DE-key.pem
+logs/logs.log
+notebooks/EDA.ipynb
+datasets/clean/*
+datasets/raw/*
