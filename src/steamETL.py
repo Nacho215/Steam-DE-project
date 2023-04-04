@@ -115,6 +115,9 @@ class SteamETL:
             )
             df_apps.rename(columns={time_col: f'{time_col}_hs'}, inplace=True)
 
+        # Rename 'ccu' column for better understanding
+        df_apps.rename(columns={'ccu': 'peak_ccu_yesterday'}, inplace=True)
+
         # Transform owners column into a tuple column
         df_apps['owners'] = df_apps['owners'].apply(
             lambda x: self.transform_owners_column(str(x))
@@ -169,7 +172,7 @@ class SteamETL:
         df_apps = df_apps[[
             'id_app', 'name', 'developer', 'publisher', 'owners_min', 'owners_max',
             'average_forever_hs', 'average_2weeks_hs', 'median_forever_hs',
-            'median_2weeks_hs', 'ccu', 'price_usd', 'initial_price_usd', 'discount'
+            'median_2weeks_hs', 'peak_ccu_yesterday', 'price_usd', 'initial_price_usd', 'discount'
         ]]
 
         # Store transformed data to csv files

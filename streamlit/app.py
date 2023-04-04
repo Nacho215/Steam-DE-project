@@ -253,7 +253,7 @@ elif selected == "🔍 Find your game!":
             step=100
         )
         # Useful columns to sort by
-        sort_columns_list = ['ccu', 'average_2weeks_hs', 'owners_max', 'price_usd', 'discount']
+        sort_columns_list = ['peak_ccu_yesterday', 'average_2weeks_hs', 'owners_max', 'price_usd', 'discount']
         order_by = c2.selectbox(
             'Sorted descending by:',
             sort_columns_list
@@ -314,7 +314,7 @@ elif selected == "🔍 Find your game!":
                         apps.name AS game_name,
                         apps.developer,
                         apps.publisher,
-                        apps.ccu,
+                        apps.peak_ccu_yesterday,
                         apps.average_2weeks_hs,
                         apps.owners_max,
                         apps.price_usd,

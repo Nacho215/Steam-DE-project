@@ -6,7 +6,7 @@ from sqlalchemy.exc import ProgrammingError
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
-from libs.config import settings
+from libs.settings import settings
 
 # Engine is created to be called as modules from other scripts
 default_engine = create_engine(settings.DATABASE_URL)

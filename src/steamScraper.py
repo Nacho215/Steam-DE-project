@@ -13,14 +13,14 @@ import os
 import time
 # Add path in order to access libs folder
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
-from libs.config import settings
+from libs.settings import settings
 
 # Constants definition
 # Parameters
 DEBUG_APP_QUANTITY = 1000
 DEBUG_START_INDEX = 0
-BATCH_SIZE = 10000
-WAIT_TIME = 10
+BATCH_SIZE = 2500
+WAIT_TIME = 2
 
 # Logging variables
 total_apps = 0
@@ -405,16 +405,16 @@ def run_scraping_process(
     Returns:
         bool: True if scraped sucessfully. False otherwise.
     """
-    # Scrape all apps list
-    logger.info("Starting scraping process for apps list...")
-    result_first_scraping = scrape_all_apps_list(
-        api_url=api_all_apps_list_url,
-        csv_path=csv_path_all_apps_list,
-        columns=all_apps_list_columns,
-        s3_info=s3_info
-    )
-    if not result_first_scraping:
-        return False
+    # # Scrape all apps list
+    # logger.info("Starting scraping process for apps list...")
+    # result_first_scraping = scrape_all_apps_list(
+    #     api_url=api_all_apps_list_url,
+    #     csv_path=csv_path_all_apps_list,
+    #     columns=all_apps_list_columns,
+    #     s3_info=s3_info
+    # )
+    # if not result_first_scraping:
+    #     return False
     logger.info("Starting scraping process for apps details...")
     result_second_scraping = asyncio.run(
         scrape_app_details(
