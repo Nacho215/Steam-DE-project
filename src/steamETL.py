@@ -106,6 +106,8 @@ class SteamETL:
         )
         # Remove games with a price higher than 1500 usd (outliers)
         df_apps = df_apps[df_apps['price_usd'] <= 1500.0]
+        # Drop duplicates
+        df_apps.drop_duplicates('id_app', inplace=True)
 
         # Transform and rename time columns in minutes to hours
         time_cols = ['average_forever', 'average_2weeks', 'median_forever', 'median_2weeks']
@@ -231,7 +233,35 @@ class SteamETL:
             dir_csv_files=dir_csv_files,
             engine=engine
         )
-        return update_result
+        if not update_result:
+            return False
+        # Add constraints to tables
+        query = """
+                -- Add primary keys
+                alter table apps add primary key (id_app);
+                alter table genres add primary key (id_genre);
+                alter table languages add primary key (id_language);
+                alter table tags add primary key (id_tag);
+
+                -- Add foreign keys
+                alter table apps_genres add constraint fk_apps_genres_id_app
+                    foreign key (id_app) references apps (id_app);
+                alter table apps_genres add constraint fk_apps_genres_id_genre
+                    foreign key (id_genre) references genres (id_genre);
+                alter table apps_languages add constraint fk_apps_languages_id_app
+                    foreign key (id_app) references apps (id_app);
+                alter table apps_languages add constraint fk_apps_languages_id_language
+                    foreign key (id_language) references languages (id_language);
+                alter table apps_tags add constraint fk_apps_tags_id_app
+                    foreign key (id_app) references apps (id_app);
+                alter table apps_tags add constraint fk_apps_tags_id_tag
+                    foreign key (id_tag) references tags (id_tag);"""
+        constraints_result = DB.execute_query(
+            query=query,
+        )
+        if constraints_result:
+            return True
+        return False
 
     def download_from_s3(
         self,
