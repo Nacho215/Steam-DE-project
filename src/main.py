@@ -2,12 +2,12 @@
 import sys
 import os
 import time
-import numpy as np
 import logging
 import logging.config
-from steamETL import SteamETL
+import numpy as np
 # Add path in order to access libs folder
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+from libs.steamETL import SteamETL
 from libs.settings import settings
 from libs.db import default_engine as engine
 
@@ -52,22 +52,22 @@ def main():
     # Execute entire ETL process
     etl = SteamETL()
     # EXTRACT
-    etl.extract(
-        api_all_apps_list_url=API_ALL_APPS_LIST_URL,
-        csv_path_all_apps_list=PATH_CSV_ALL_APPS_LIST,
-        all_apps_list_columns=ALL_APPS_LIST_COLUMNS,
-        api_app_details_url=API_APP_DETAILS_URL,
-        csv_path_app_details=PATH_CSV_APP_DATA_RAW,
-        app_details_columns=STEAMSPY_COLUMNS,
-        s3_info=S3_INFO
-    )
+    # etl.extract(
+    #     api_all_apps_list_url=API_ALL_APPS_LIST_URL,
+    #     csv_path_all_apps_list=PATH_CSV_ALL_APPS_LIST,
+    #     all_apps_list_columns=ALL_APPS_LIST_COLUMNS,
+    #     api_app_details_url=API_APP_DETAILS_URL,
+    #     csv_path_app_details=PATH_CSV_APP_DATA_RAW,
+    #     app_details_columns=STEAMSPY_COLUMNS,
+    #     s3_info=S3_INFO
+    # )
     counters.append(time.perf_counter())
     # TRANSFORM
-    etl.transform(
-        input_csv_path=PATH_CSV_APP_DATA_RAW,
-        output_csv_path=PATH_CSV_CLEAN_DATA,
-        s3_info=S3_INFO
-    )
+    # etl.transform(
+    #     input_csv_path=PATH_CSV_APP_DATA_RAW,
+    #     output_csv_path=PATH_CSV_CLEAN_DATA,
+    #     s3_info=S3_INFO
+    # )
     counters.append(time.perf_counter())
     # LOAD
     etl.load(

@@ -12,3 +12,4 @@ streamlit/app_2.py
 notebooks/EDA.ipynb
 datasets/clean/*
 datasets/raw/*
+TODO.txt

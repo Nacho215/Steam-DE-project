@@ -1,38 +1,74 @@
-import pandas as pd
 import logging
 import logging.config
+import os
+import pandas as pd
 from sqlalchemy import Engine, text, create_engine
 from sqlalchemy.exc import ProgrammingError
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
-from libs.settings import settings
+from settings import settings
 
 # Engine is created to be called as modules from other scripts
 default_engine = create_engine(settings.DATABASE_URL)
 
 # Logging config
-#logging.config.fileConfig('config_logs.conf')
+# logging.config.fileConfig('config_logs.conf')
 logger = logging.getLogger('DB')
+
+# Tables creation SQL path
+TABLES_CREATION_SQL_PATH = os.path.join(
+    os.path.dirname(__file__),
+    '../',
+    'database',
+    'create_tables.sql'
+)
 
 
 class DB:
     '''
     Class used to connect to a database, truncate and update tables on it.
     '''
-    def truncate_tables(
+
+    def create_tables(
+        sql_path: str,
+        engine: Engine = default_engine
+    ) -> bool:
+        """
+        Executes a SQL script to create tables structure.
+
+        Args:
+            sql_path (str): Path of the SQL file.
+            engine (Engine, optional): Database connection engine.
+                Defaults to default_engine.
+
+        Returns:
+            bool: True if created successfully, False otherwise.
+        """
+        try:
+            with engine.connect() as con:
+                with open(sql_path) as file:
+                    query = text(file.read())
+                    con.execute(query)
+                    con.commit()
+        except Exception:
+            logger.error('Failed to create tables.', exc_info=True)
+            return False
+        logger.info('Tables sucessfully created!')
+        return True
+
+    def prepare_tables(
         tables: list,
         engine: Engine = default_engine
     ) -> bool:
         """
-        This methods performs a truncate to the tables.
+        This method truncates tables if they already exist,
+        or create them otherwise.
 
         Args:
             engine (Engine, optional): Database connection engine.
                 Defaults to default_engine.
 
         Returns:
-            bool : True if truncated successfully, False otherwise.
+            bool : True if created or truncated successfully,
+                False otherwise.
         """
         # Iterate table names list and build the truncate query
         query = "TRUNCATE TABLE "
@@ -40,16 +76,18 @@ class DB:
             query += table_name
             if idx < len(tables) - 1:
                 query += ", "
+        # Add cascade keyword to ignore constraints
+        query += " CASCADE"
         # Catch and return possible exceptions
         try:
             with engine.connect() as connection:
                 connection.execute(text(query))
         except ProgrammingError as e:
             # This error means tables does not exists yet,
-            # so we can skip truncate process
+            # so we need to create them first
             if e.args[0].startswith('(psycopg2.errors.UndefinedTable)'):
-                logger.info("Tables does not exists. Skipping truncate process...")
-                return True
+                logger.info("Tables does not exists. Creating tables...")
+                return DB.create_tables(sql_path=TABLES_CREATION_SQL_PATH)
             # IF it's other error, return False
             logger.error('Truncate tables failed.', exc_info=True)
             return False
@@ -76,17 +114,30 @@ class DB:
             bool: True if updated sucessfully. False otherwise
         """
         try:
-            # Look for csv files in given directory
+            # Separate normal and intermediate tables
+            normal_tables = []
+            intermediate_tables = []
             for filename in os.listdir(dir_csv_files):
+                if filename.startswith('apps_'):
+                    intermediate_tables.append(filename)
+                else:
+                    normal_tables.append(filename)
+            # Put normal tables first, then intermediate ones
+            # This is to prevent foreign key violation errors
+            tables = normal_tables + intermediate_tables
+            # Then, update tables in that order
+            for filename in tables:
                 # Full file path
                 file_path = f'{dir_csv_files}/{filename}'
                 df_name = filename.split('.')[0]
                 # Read dataframe and uploads it to database
+                # in 'append' mode, to maintain table structure
+                # and constraints
                 df = pd.read_csv(file_path)
                 df.to_sql(
                     df_name,
                     engine,
-                    if_exists='replace',
+                    if_exists='append',
                     index=False
                 )
                 logger.info(f'Table "{df_name}" updated successfully on database.')

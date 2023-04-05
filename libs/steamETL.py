@@ -1,21 +1,30 @@
 # Imports
-import pandas as pd
 import boto3
 import json
 import os
 import sys
+import pandas as pd
 import logging
 import logging.config
+# Add path in order to access libs folder
+sys.path.append(os.path.dirname(__file__))
 from steamScraper import run_scraping_process
-sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
-from libs.db import DB
+from db import DB
 
 # Setup logger
 logging.config.fileConfig('config_logs.conf')
 logger = logging.getLogger('ETL')
 
 # Table names
-table_names = []
+table_names = [
+    'genres',
+    'apps_languages',
+    'languages',
+    'apps_tags',
+    'tags',
+    'apps',
+    'apps_genres'
+]
 
 
 class SteamETL:
@@ -214,18 +223,18 @@ class SteamETL:
         Returns:
             bool: True if loaded successfully. False otherwise.
         """
-        # Upload transformed csv files to S3 bucket
-        upload_result = self.upload_transformed_data_to_s3(
-            dir_csv_files=dir_csv_files,
-            s3_info=s3_info
-        )
-        if not upload_result:
-            return False
-        # Truncate tables
-        truncate_result = DB.truncate_tables(
+        # # Upload transformed csv files to S3 bucket
+        # upload_result = self.upload_transformed_data_to_s3(
+        #     dir_csv_files=dir_csv_files,
+        #     s3_info=s3_info
+        # )
+        # if not upload_result:
+        #     return False
+        # Prepare tables (truncate or create)
+        prepare_result = DB.prepare_tables(
             tables=table_names
         )
-        if not truncate_result:
+        if not prepare_result:
             return False
         # Update tables to database
         logger.info('Starting update tables process...')
@@ -233,35 +242,7 @@ class SteamETL:
             dir_csv_files=dir_csv_files,
             engine=engine
         )
-        if not update_result:
-            return False
-        # Add constraints to tables
-        query = """
-                -- Add primary keys
-                alter table apps add primary key (id_app);
-                alter table genres add primary key (id_genre);
-                alter table languages add primary key (id_language);
-                alter table tags add primary key (id_tag);
-
-                -- Add foreign keys
-                alter table apps_genres add constraint fk_apps_genres_id_app
-                    foreign key (id_app) references apps (id_app);
-                alter table apps_genres add constraint fk_apps_genres_id_genre
-                    foreign key (id_genre) references genres (id_genre);
-                alter table apps_languages add constraint fk_apps_languages_id_app
-                    foreign key (id_app) references apps (id_app);
-                alter table apps_languages add constraint fk_apps_languages_id_language
-                    foreign key (id_language) references languages (id_language);
-                alter table apps_tags add constraint fk_apps_tags_id_app
-                    foreign key (id_app) references apps (id_app);
-                alter table apps_tags add constraint fk_apps_tags_id_tag
-                    foreign key (id_tag) references tags (id_tag);"""
-        constraints_result = DB.execute_query(
-            query=query,
-        )
-        if constraints_result:
-            return True
-        return False
+        return update_result
 
     def download_from_s3(
         self,
