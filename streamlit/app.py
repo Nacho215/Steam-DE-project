@@ -11,7 +11,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 from libs.db import default_engine as engine
 
 # Constant definitions
-DIR_CLEAN_DATASETS = '../datasets/clean'
 MAX_ROWS_PREVIEW_TABLES = 100
 plotly_color_palette = px.colors.sequential.Greens_r
 FILTER_COLUMNS = ['peak_ccu_yesterday', 'average_2weeks_hs', 'owners_max', 'price_usd', 'discount']
@@ -41,7 +40,8 @@ def get_preview_tables(
             """SELECT table_name
             FROM information_schema.tables
             WHERE table_schema='public'
-            AND table_type='BASE TABLE';"""
+            AND table_type='BASE TABLE'
+            ORDER BY table_name;"""
         ),
         engine.connect()
     )
@@ -162,7 +162,7 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def format_string_value(column: str) -> str:
+def format_string_value(string: str) -> str:
     """
     Receive a string value and returns a
     more descriptive and user friendly version of it.
@@ -173,7 +173,7 @@ def format_string_value(column: str) -> str:
     Returns:
         str: transformed string value.
     """
-    match column:
+    match string:
         case 'peak_ccu_yesterday':
             return 'Peak CCU yesterday'
         case 'average_forever_hs':
@@ -205,7 +205,7 @@ def format_string_value(column: str) -> str:
         case 'avg_discount':
             return 'Average Discount (%)'
         case _:
-            return column.capitalize()
+            return string.capitalize()
 
 
 # Load preview tables
@@ -241,58 +241,49 @@ genres_list = get_unique_values_list(
 
 
 # Page config
-st.set_page_config(page_title='Steam Games Data', page_icon='video_game', layout='wide')
-st.markdown("<h1 style='text-align: center;'>🎮 Steam Games Data</h1>", unsafe_allow_html=True)
+st.set_page_config(
+    page_title='Steam Games Data',
+    page_icon='video_game',
+    layout='wide'
+)
+st.markdown(
+    "<h1 style='text-align: center;'>🎮 Steam Games Data</h1>",
+    unsafe_allow_html=True
+)
 
 # Navigation Menu
 with st.sidebar:
     selected = option_menu(
-        "📋 Main Menu",
-        [
+        menu_title="Main Menu",
+        menu_icon='house',
+        options=[
             "🔍 Find your game!",
             "🎭 Genres",
             "🈯 Languages",
             "🔖 Tags",
             "🔨 Tables structure"
         ],
-        default_index=0
+        default_index=0,
+        icons=[],
+        styles={
+            "container": {"padding": "5!important", "background-color": "#262730"},
+            "icon": {"color": "white", "font-size": "25px"},
+            "nav-link": {"font-size": "16px", "text-align": "left", "margin": "0px", "--hover-color": "#0E1117"},
+            "nav-link-selected": {"background-color": "#306f34"},
+        }
     )
 
-# Tables structure Menu
-if selected == "🔨 Tables structure":
-    # Title and description
-    st.header("🔨 Tables structure")
-    st.text("""These are the database tables structure.\nMax rows per table are capped at 100 for better performance.""")
-
-    # Create a container for apps table
-    # and 3 columns for other tables
-    apps_container = st.container()
-    c1, c2, c3 = st.columns(3)
-    column_count = 1
-    for table_name, table_data in tables_info.items():
-        if table_name == 'apps':
-            apps_container.subheader(f'{table_name} table')
-            apps_container.dataframe(table_data)
-        else:
-            match column_count:
-                case 1:
-                    c1.subheader(f'{table_name} table')
-                    c1.dataframe(table_data)
-                case 2:
-                    c2.subheader(f'{table_name} table')
-                    c2.dataframe(table_data)
-                case 3:
-                    c3.subheader(f'{table_name} table')
-                    c3.dataframe(table_data)
-            column_count = (column_count + 1) if (column_count < 3) else 1
 # Trending Menu
-elif selected == "🔍 Find your game!":
+if selected == "🔍 Find your game!":
     # Title and description
     st.markdown(
             """
             ## 🔍 Find your game!
-            In this section, you can search for your ideal game!
-            Filter for a **genre**, a **developer** you are fan of, a specifig **language** or maybe just a nice single player game with **discount**.
+            \nIn this section, you can search for your ideal game! You may filter for:
+            \n- a **genre** you love
+            \n- a **developer** you are fan of
+            \n- a specific **language**
+            \n- or maybe just a nice single player game with **discount**
             """
     )
     with st.expander("**Glossary**", False):
@@ -519,6 +510,7 @@ elif selected == "🎭 Genres":
         except Exception as e:
             c1.text(e)
         # Specific Genre Analysis
+        st.divider()
         with st.container():
             # Filters
             st.subheader('🎯 Specific Genre Analysis')
@@ -740,6 +732,7 @@ elif selected == "🈯 Languages":
         except Exception as e:
             c1.text(e)
         # Specific Language Analysis
+        st.divider()
         with st.container():
             # Filters
             st.subheader('🎯 Specific Language Analysis')
@@ -962,6 +955,7 @@ elif selected == "🔖 Tags":
         except Exception as e:
             st.text(e)
         # Specific Language Analysis
+        st.divider()
         with st.container():
             # Filters
             st.subheader('🎯 Specific Tag Analysis')
@@ -1068,3 +1062,37 @@ elif selected == "🔖 Tags":
                     sh2.subheader(f'💰 Free vs Paid apps for {selected_tag} Tag')
                 except Exception as e:
                     c2.text(e)
+# Tables structure Menu
+elif selected == "🔨 Tables structure":
+    # Title and description
+    st.markdown(
+        """
+        ## 🔨 Tables structure
+        \nThese are the database tables structure.
+        \nMax rows per table are capped at 100 for better performance.
+        """
+    )
+
+    # Create a container for apps table
+    # and 3 columns for other tables
+    apps_container = st.container()
+    c1, c2, c3 = st.columns([1, 1.5, 1], gap="large")
+    column_count = 1
+    for table_name, table_data in tables_info.items():
+        if table_name == 'apps':
+            apps_container.subheader(f'{table_name} table')
+            apps_container.dataframe(table_data)
+        else:
+            match column_count:
+                case 1:
+                    c1.subheader(f'{table_name} table')
+                    c1.dataframe(table_data)
+                case 2:
+                    c2.subheader(f'{table_name} table')
+                    # Contemplate wide tables
+                    wide_table = True if len(table_data.columns) > 2 else False
+                    c2.dataframe(table_data, use_container_width=wide_table)
+                case 3:
+                    c3.subheader(f'{table_name} table')
+                    c3.dataframe(table_data)
+            column_count = (column_count + 1) if (column_count < 3) else 1
