@@ -513,11 +513,15 @@ class SteamETL:
             # Reflect changes in the list
             languages[idx] = lang
 
-        # Filter random Steam languages like '#lang_#lang_spanish*#lang_full_audio'
+        # Filter languages
         for lang in languages:
-            if lang.startswith('#'):
+            # Filter random Steam languages like '#lang_#lang_spanish*#lang_full_audio'
+            # and "(all with full audio support)"
+            if lang.startswith('#') or lang.startswith('('):
                 languages.remove(lang)
-
+            # Filter "not supported"
+            if lang.lower() == 'not supported':
+                languages.remove(lang)
         return languages
 
     def normalize_language(

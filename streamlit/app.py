@@ -1,16 +1,12 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-from pandas.api.types import (
-    is_categorical_dtype,
-    is_datetime64_any_dtype,
-    is_numeric_dtype,
-    is_object_dtype,
-)
 import os
 import sys
+import pandas as pd
+import plotly.express as px
+from pandas.api.types import (is_categorical_dtype, is_datetime64_any_dtype,
+                              is_numeric_dtype, is_object_dtype)
 from sqlalchemy import text
 from streamlit_option_menu import option_menu
+import streamlit as st
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 from libs.db import default_engine as engine
 
@@ -18,6 +14,7 @@ from libs.db import default_engine as engine
 DIR_CLEAN_DATASETS = '../datasets/clean'
 MAX_ROWS_PREVIEW_TABLES = 100
 plotly_color_palette = px.colors.sequential.Greens_r
+FILTER_COLUMNS = ['peak_ccu_yesterday', 'average_2weeks_hs', 'owners_max', 'price_usd', 'discount']
 
 
 # Methods
@@ -78,7 +75,7 @@ def get_unique_values_list(
     """
     df_unique_values = pd.read_sql(
         text(
-            f'SELECT DISTINCT {column} FROM {table};'
+            f'SELECT DISTINCT {column} FROM {table} ORDER BY {column};'
         ),
         engine.connect()
     )
@@ -95,8 +92,11 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Filtered dataframe
     """
-    modify = st.checkbox("Add filters")
+    # Format column names
+    for col in df.columns:
+        df.rename(columns={col: format_string_value(col)}, inplace=True)
 
+    modify = st.checkbox("Add filters")
     if not modify:
         return df
 
@@ -162,6 +162,52 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def format_string_value(column: str) -> str:
+    """
+    Receive a string value and returns a
+    more descriptive and user friendly version of it.
+
+    Args:
+        option (str): string value to transform.
+
+    Returns:
+        str: transformed string value.
+    """
+    match column:
+        case 'peak_ccu_yesterday':
+            return 'Peak CCU yesterday'
+        case 'average_forever_hs':
+            return 'Avg hs played forever'
+        case 'average_2weeks_hs':
+            return 'Avg hs played last 2 weeks'
+        case 'median_forever_hs':
+            return 'Median hs played forever'
+        case 'median_2weeks_hs':
+            return 'Median hs played last 2 weeks'
+        case 'owners_min':
+            return 'Minimum Owners'
+        case 'owners_max':
+            return 'Owners (max)'
+        case 'price_usd':
+            return 'Current US Price'
+        case 'initial_price_usd':
+            return 'Initial US Price'
+        case 'apps_count':
+            return 'Number of Apps'
+        case 'avg_peak_ccu_yesterday':
+            return 'Average peak CCU yesterday'
+        case 'avg_2weeks_hs':
+            return 'Average hours played last 2 weeks'
+        case 'avg_owners_max':
+            return 'Average Owners (Max)'
+        case 'avg_price_usd':
+            return 'Average Current Price in USD'
+        case 'avg_discount':
+            return 'Average Discount (%)'
+        case _:
+            return column.capitalize()
+
+
 # Load preview tables
 tables_info = get_preview_tables(
     engine=engine,
@@ -173,10 +219,17 @@ tags_list = get_unique_values_list(
     column='tag',
     table='tags',
 )
-# Load developers list
+# Load languages list
+# languages_list = [
+#     'Arabic', 'Bulgarian', 'Chinese', 'Czech', 'Danish', 'Dutch',
+#     'English', 'Finnish', 'French', 'German', 'Greek', 'Hungarian',
+#     'Italian', 'Japanese', 'Korean', 'Norwegian', 'Polish', 'Portuguese',
+#     'Romanian', 'Russian', 'Spanish', 'Swedish', 'Thai', 'Turkish',
+#     'Ukrainian', 'Vietnamese'
+# ]
 languages_list = get_unique_values_list(
     engine=engine,
-    column='language',
+    column='normalized_language',
     table='languages',
 )
 # Load genres list
@@ -189,7 +242,7 @@ genres_list = get_unique_values_list(
 
 # Page config
 st.set_page_config(page_title='Steam Games Data', page_icon='video_game', layout='wide')
-st.header(':video_game: Steam Games Data')
+st.markdown("<h1 style='text-align: center;'>🎮 Steam Games Data</h1>", unsafe_allow_html=True)
 
 # Navigation Menu
 with st.sidebar:
@@ -210,7 +263,7 @@ if selected == "🔨 Tables structure":
     # Title and description
     st.header("🔨 Tables structure")
     st.text("""These are the database tables structure.\nMax rows per table are capped at 100 for better performance.""")
-    
+
     # Create a container for apps table
     # and 3 columns for other tables
     apps_container = st.container()
@@ -235,83 +288,101 @@ if selected == "🔨 Tables structure":
 # Trending Menu
 elif selected == "🔍 Find your game!":
     # Title and description
-    st.header("🔍 Find your game!")
-    st.text("Here you can search for your ideal game!\nFilter for a genre, a developer you are fan of, a specifig language or maybe just a nice single player game with discount.")
+    st.markdown(
+            """
+            ## 🔍 Find your game!
+            In this section, you can search for your ideal game!
+            Filter for a **genre**, a **developer** you are fan of, a specifig **language** or maybe just a nice single player game with **discount**.
+            """
+    )
+    with st.expander("**Glossary**", False):
+        st.markdown(
+            """
+            - **CCU**: Concurrent users
+            - **Owners**: Number of users who have the game in their library. This data comes in interval format, that's why you may see "min" or "max" in some filters.
+            - **Avg**: Average
+            """
+        )
 
     with st.container():
-        # Columns
-        c1, c2 = st.columns([3, 1])
-        # Subheader
-        c1.subheader("📄 Filtered games")
         # Filters
-        c2.subheader('🎚️ Filters')
-        n_games = c2.slider(
+        st.subheader('🎚️ Filters')
+        # First row
+        c1, c2 = st.columns(2)
+        n_games = c1.slider(
             'Top N° Games:',
             min_value=1,
             max_value=5000,
             value=2500,
             step=100
         )
-        # Useful columns to sort by
-        sort_columns_list = ['peak_ccu_yesterday', 'average_2weeks_hs', 'owners_max', 'price_usd', 'discount']
         order_by = c2.selectbox(
             'Sorted descending by:',
-            sort_columns_list
+            FILTER_COLUMNS,
+            format_func=format_string_value
         )
-        selected_genres = c2.multiselect(
-            'Only games with ANY of this genres:',
+        # Second row
+        c1, c2, c3 = st.columns(3)
+        selected_genres = c1.multiselect(
+            'Genres:',
             genres_list
         )
         selected_languages = c2.multiselect(
-            'Only games with ANY of this languages:',
+            'Languages:',
             languages_list
         )
-        selected_tags = c2.multiselect(
-            'Only games with ANY of this tags:',
+        selected_tags = c3.multiselect(
+            'Tags:',
             tags_list
         )
+        # Subheader
+        st.subheader("📄 Filtered games")
         # Where clause
         where_clause = ''
         if selected_genres or selected_languages or selected_tags:
             where_clause = 'WHERE'
         if selected_genres:
             genres = ",".join(f"'{genre}'" for genre in selected_genres)
-            where_clause += f''' apps.id_app IN (
-                            SELECT DISTINCT
-                                apps_genres.id_app
-                            FROM
-                                apps_genres
-                                INNER JOIN genres ON apps_genres.id_genre = genres.id_genre
-                            WHERE
-                                genres.genre IN ({genres}))'''
+            where_clause += f'''
+                apps.id_app IN (
+                    SELECT apps_genres.id_app
+                    FROM apps_genres
+                    INNER JOIN genres ON apps_genres.id_genre = genres.id_genre
+                    WHERE genres.genre IN ({genres})
+                    GROUP BY apps_genres.id_app
+                    HAVING COUNT(DISTINCT genres.genre) = {len(selected_genres)}
+                )'''
         if selected_languages:
             if selected_genres:
                 where_clause += ' AND'
             langs = ",".join(f"'{lang}'" for lang in selected_languages)
-            where_clause += f''' apps.id_app IN (
-                            SELECT DISTINCT
-                                apps_languages.id_app
-                            FROM
-                                apps_languages
-                                INNER JOIN languages ON apps_languages.id_language = languages.id_language
-                            WHERE
-                                languages.language IN ({langs}))'''
+            where_clause += f'''
+                apps.id_app IN (
+                    SELECT DISTINCT apps.id_app
+                    FROM apps
+                    JOIN apps_languages ON apps.id_app = apps_languages.id_app
+                    JOIN languages ON apps_languages.id_language = languages.id_language
+                    WHERE languages.normalized_language IN ({langs})
+                    GROUP BY apps.id_app
+                    HAVING COUNT(DISTINCT languages.id_language) = {len(selected_languages)}
+                )'''
         if selected_tags:
             if selected_genres or selected_languages:
                 where_clause += ' AND'
             tags = ",".join(f"'{tag}'" for tag in selected_tags)
-            where_clause += f''' apps.id_app IN (
-                            SELECT DISTINCT
-                                apps_tags.id_app
-                            FROM
-                                apps_tags
-                                INNER JOIN tags ON apps_tags.id_tag = tags.id_tag
-                            WHERE
-                                tags.tag IN ({tags}))'''
+            where_clause += f'''
+                apps.id_app IN (
+                    SELECT apps_tags.id_app
+                    FROM apps_tags
+                    INNER JOIN tags ON apps_tags.id_tag = tags.id_tag
+                    WHERE tags.tag IN ({tags})
+                    GROUP BY apps_tags.id_app
+                    HAVING COUNT(DISTINCT tags.tag) = {len(selected_tags)}
+                )'''
         # Query
         query = f"""
                     SELECT DISTINCT
-                        apps.name AS game_name,
+                        apps.name,
                         apps.developer,
                         apps.publisher,
                         apps.peak_ccu_yesterday,
@@ -325,22 +396,34 @@ elif selected == "🔍 Find your game!":
                     LIMIT {n_games}
                     """
         try:
-            # Query and plot the table
+            # Query
             df = pd.read_sql(
                 text(query),
                 engine.connect()
             )
-            c1.dataframe(filter_dataframe(df))
+            # Show filter and formatted table
+            # st.subheader("👇 Here you can post-filter on the query results")
+            st.dataframe(filter_dataframe(df))
         except Exception as e:
-            c1.text(e)
-        # Annotation
-        c1.subheader("👇 Here you can post-filter on the query results")
+            st.text(e)
 # Genres Menu
 elif selected == "🎭 Genres":
     # Title and description
-    st.header("🎭 Genres Analysis")
-    st.text("Here you can explore which are the most popular genres based on some filter, or maybe do some specific genre analysis.")
-    
+    st.markdown(
+        """
+        ## 🎭 Genres Analysis
+        Here you can explore which are the most popular **genres** based on some filter.
+        In addition, you can do a **specific genre** analysis.
+        """
+    )
+    with st.expander("**Glossary**", False):
+        st.markdown(
+            """
+            - **CCU**: Concurrent users
+            - **Owners**: Number of users who have the game in their library. This data comes in interval format, that's why you may see "min" or "max" in some filters.
+            - **Avg**: Average
+            """
+        )
     with st.container():
         # Columns
         c1, c2 = st.columns([3, 1])
@@ -353,6 +436,11 @@ elif selected == "🎭 Genres":
             value=10,
             step=1
         )
+        criteria = c2.selectbox(
+            'Based on:',
+            options=['apps_count'] + FILTER_COLUMNS,
+            format_func=format_string_value
+        )
         price_interval = c2.slider(
             'Price in USD:',
             min_value=0,
@@ -362,35 +450,74 @@ elif selected == "🎭 Genres":
         )
         # Where clause
         where_clause = 'WHERE'
-        where_clause += F' a.price_usd BETWEEN {price_interval[0]} AND {price_interval[1]}'
+        where_clause += f' a.price_usd BETWEEN {price_interval[0]} AND {price_interval[1]}'
+        # Change some query parts based on chosen criteria
+        select_column = ''
+        order_by = ''
+        match criteria:
+            case 'apps_count':
+                select_column = 'COUNT(a.id_app) as apps_count'
+                order_by = 'apps_count'
+            case 'peak_ccu_yesterday':
+                select_column = 'AVG(a.peak_CCU_yesterday) as avg_peak_ccu_yesterday'
+                order_by = 'avg_peak_ccu_yesterday'
+            case 'average_2weeks_hs':
+                select_column = 'AVG(a.average_2weeks_hs) as avg_2weeks_hs'
+                where_clause += ' AND a.average_2weeks_hs > 0'
+                order_by = 'avg_2weeks_hs'
+            case 'owners_max':
+                select_column = 'AVG(a.owners_max) as avg_owners_max'
+                order_by = 'avg_owners_max'
+            case 'price_usd':
+                select_column = 'AVG(a.price_usd) as avg_price_usd'
+                where_clause += ' AND a.price_usd > 0'
+                order_by = 'avg_price_usd'
+            case 'discount':
+                select_column = 'AVG(a.discount) as avg_discount'
+                order_by = 'avg_discount'
         # MOST POPULAR GENRES
         c1.subheader('🏅 Most popular Genres')
         # Query
         query = f"""
-                    SELECT g.genre, COUNT(ag.id_app) AS app_count
+                    SELECT g.genre, {select_column}
                     FROM genres g
                     INNER JOIN apps_genres ag ON g.id_genre = ag.id_genre
                     JOIN apps a ON a.id_app = ag.id_app
                     {where_clause}
                     GROUP BY g.genre
-                    ORDER BY app_count DESC
+                    ORDER BY {order_by} DESC
                     LIMIT {n_genres};"""
         # Query the database and plot
         try:
             df = pd.read_sql(
                 text(query),
                 engine.connect()
-            ).sort_values('app_count')
-            chart = px.bar(
+            )
+            df.sort_values(df.columns[1], inplace=True)
+            x_label = select_column.split()[-1]
+            fig = px.bar(
                 df,
-                x='app_count',
+                x=x_label,
                 y='genre',
                 orientation='h',
-                color_discrete_sequence=plotly_color_palette
+                color_discrete_sequence=plotly_color_palette,
+                labels={
+                    'apps_count': 'Number of Apps',
+                    'avg_peak_ccu_yesterday': 'Average peak CCU yesterday',
+                    'avg_2weeks_hs': 'Average hours played last 2 weeks',
+                    'avg_owners_max': 'Average Owners (Max)',
+                    'avg_price_usd': 'Average Current Price in USD',
+                    'avg_discount': 'Average Discount (%)'
+                }
             )
-            c1.plotly_chart(chart)
+            fig.update_layout(yaxis_title=None)
+            fig.update_traces(
+                hovertemplate='<b>%{label}</b><br><br>' +
+                        format_string_value(x_label) + ': %{value}<br>',
+            )
+            c1.plotly_chart(fig)
         except Exception as e:
-            st.text(e)
+            c1.text(e)
         # Specific Genre Analysis
         with st.container():
             # Filters
@@ -402,8 +529,8 @@ elif selected == "🎭 Genres":
             # Columns
             c1, c2 = st.columns([2, 2])
             # Subheaders
-            c1.subheader('🔖 Top 10 tags for this Genre')
-            c2.subheader('💰 Price distribution for this Genre')
+            sh1 = c1.subheader('🔖 Top 10 tags for this Genre')
+            sh2 = c2.subheader('💰 Free vs Paid apps for this Genre')
             # Where clause
             where_clause = ''
             # Only plot if a genre is selected
@@ -412,12 +539,12 @@ elif selected == "🎭 Genres":
                 query = f"""
                             SELECT t.tag, COUNT(*) as num_apps
                             from tags t
-                            JOIN apps_tags at2  ON t.id_tag  = at2.id_tag 
+                            JOIN apps_tags at2  ON t.id_tag  = at2.id_tag
                             where at2.id_app in (
                                 select ag.id_app
                                 from apps a
                                 join apps_genres ag on ag.id_app = a.id_app
-                                join genres g on g.id_genre = ag.id_genre  
+                                join genres g on g.id_genre = ag.id_genre
                                 where g.genre  = '{selected_genre}'
                             )
                             GROUP BY t.tag
@@ -429,24 +556,46 @@ elif selected == "🎭 Genres":
                         text(query),
                         engine.connect()
                     )
-                    fig = px.pie(
+                    fig = px.bar(
                         df,
-                        values='num_apps',
-                        names='tag',
-                        color_discrete_sequence=plotly_color_palette
+                        x='tag',
+                        y='num_apps',
+                        orientation='v',
+                        color_discrete_sequence=plotly_color_palette,
+                        labels={
+                            'num_apps': 'Number of Apps',
+                            'tag': 'Tag'
+                        }
                     )
-                    fig.update_traces(textposition='inside', textinfo='percent+label')
-                    fig.update_layout(showlegend=False)
+                    fig.update_layout(
+                        xaxis_title=None,
+                        showlegend=False
+                    )
+                    # Customize text
+                    fig.update_traces(
+                        hovertemplate='<b>%{label}</b><br><br>' +
+                                'Number of Apps: %{value}<br>'
+                    )
                     c1.plotly_chart(fig, use_container_width=True)
+                    # Update subheader
+                    sh1.subheader(f'🔖 Top 10 tags for {selected_genre} Genre')
                 except Exception as e:
                     c1.text(e)
-                # PRICE DISTRIBUTION FOR THIS GENRE
+                # FREE VS PAID APPS FOR THIS GENRE
                 query = f"""
-                            SELECT a.price_usd
-                            FROM apps a
-                            INNER JOIN apps_genres ag  ON a.id_app = ag.id_app
-                            INNER JOIN genres g ON ag.id_genre  = g.id_genre 
-                            WHERE g.genre  = '{selected_genre}'
+                            SELECT
+                                SUM(CASE WHEN a.price_usd = 0 THEN 1 ELSE 0 END) AS free_apps,
+                                SUM(CASE WHEN a.price_usd > 0 THEN 1 ELSE 0 END) AS paid_apps
+                            FROM
+                                apps AS a
+                            JOIN
+                                apps_genres AS ag ON a.id_app = ag.id_app
+                            JOIN
+                                genres AS g ON ag.id_genre = g.id_genre
+                            WHERE
+                                g.genre = '{selected_genre}'
+                            GROUP BY
+                                g.genre;
                             """
                 # Query the database and plot
                 try:
@@ -454,25 +603,48 @@ elif selected == "🎭 Genres":
                         text(query),
                         engine.connect()
                     )
-                    fig = px.histogram(
-                        df,
-                        nbins=20,
+                    # Pie chart
+                    labels = ['Free', 'Paid']
+                    values = df.values[0]
+                    fig = px.pie(
+                        values=values,
+                        names=labels,
+                        hole=.4,
                         color_discrete_sequence=plotly_color_palette
                     )
-                    fig.update_layout(
-                        xaxis_title="USD Price",
-                        yaxis_title="Frequency",
-                        showlegend=False
+                    # Customize text
+                    fig.update_traces(
+                        textposition='inside',
+                        textinfo='label+percent',
+                        textfont_size=20,
+                        hovertemplate='<b>%{label}</b><br><br>' +
+                                'Number of Apps: %{value}<br>' +
+                                'Percentage: %{percent:.2%}<br>'
                     )
+                    fig.update_layout(showlegend=False)
                     c2.plotly_chart(fig, use_container_width=True)
+                    # Update subheader
+                    sh2.subheader(f'💰 Free vs Paid apps for {selected_genre} Genre')
                 except Exception as e:
                     c2.text(e)
 # Languages Menu
 elif selected == "🈯 Languages":
     # Title and description
-    st.header("🈯 Languages Analysis")
-    st.text("Here you can explore which are the most popular languages based on some filter, or maybe do some specific language analysis.")
-
+    st.markdown(
+        """
+        ## 🈯 Languages Analysis
+        In this section you can see in which **languages** are available the most popular games.
+        In addition, you can do a **specific language** analysis.
+        """
+    )
+    with st.expander("**Glossary**", False):
+        st.markdown(
+            """
+            - **CCU**: Concurrent users
+            - **Owners**: Number of users who have the game in their library. This data comes in interval format, that's why you may see "min" or "max" in some filters.
+            - **Avg**: Average
+            """
+        )
     with st.container():
         # Columns
         c1, c2 = st.columns([3, 1])
@@ -487,6 +659,11 @@ elif selected == "🈯 Languages":
             value=10,
             step=1
         )
+        criteria = c2.selectbox(
+            'Based on:',
+            options=['apps_count'] + FILTER_COLUMNS,
+            format_func=format_string_value
+        )
         price_interval = c2.slider(
             'Price in USD:',
             min_value=0,
@@ -496,33 +673,72 @@ elif selected == "🈯 Languages":
         )
         # Where clause
         where_clause = 'WHERE'
-        where_clause += F' a.price_usd BETWEEN {price_interval[0]} AND {price_interval[1]}'
+        where_clause += f' a.price_usd BETWEEN {price_interval[0]} AND {price_interval[1]}'
+        # Change some query parts based on chosen criteria
+        select_column = ''
+        order_by = ''
+        match criteria:
+            case 'apps_count':
+                select_column = 'COUNT(a.id_app) as apps_count'
+                order_by = 'apps_count'
+            case 'peak_ccu_yesterday':
+                select_column = 'AVG(a.peak_CCU_yesterday) as avg_peak_ccu_yesterday'
+                order_by = 'avg_peak_ccu_yesterday'
+            case 'average_2weeks_hs':
+                select_column = 'AVG(a.average_2weeks_hs) as avg_2weeks_hs'
+                where_clause += ' AND a.average_2weeks_hs > 0'
+                order_by = 'avg_2weeks_hs'
+            case 'owners_max':
+                select_column = 'AVG(a.owners_max) as avg_owners_max'
+                order_by = 'avg_owners_max'
+            case 'price_usd':
+                select_column = 'AVG(a.price_usd) as avg_price_usd'
+                where_clause += ' AND a.price_usd > 0'
+                order_by = 'avg_price_usd'
+            case 'discount':
+                select_column = 'AVG(a.discount) as avg_discount'
+                order_by = 'avg_discount'
         # Query
         query = f"""
-                    SELECT l.language, COUNT(al.id_app) AS app_count
+                    SELECT l.normalized_language, {select_column}
                     FROM languages l
                     INNER JOIN apps_languages al ON l.id_language = al.id_language
                     JOIN apps a ON a.id_app = al.id_app
                     {where_clause}
-                    GROUP BY l.language
-                    ORDER BY app_count DESC
+                    GROUP BY l.normalized_language
+                    ORDER BY {order_by} DESC
                     LIMIT {n_languages};"""
         # Query the database and plot
         try:
             df = pd.read_sql(
                 text(query),
                 engine.connect()
-            ).sort_values('app_count')
-            chart = px.bar(
-                df,
-                x='app_count',
-                y='language',
-                orientation='h',
-                color_discrete_sequence=plotly_color_palette
             )
-            c1.plotly_chart(chart)
+            df.sort_values(df.columns[1], inplace=True)
+            x_label = select_column.split()[-1]
+            fig = px.bar(
+                df,
+                x=x_label,
+                y='normalized_language',
+                orientation='h',
+                color_discrete_sequence=plotly_color_palette,
+                labels={
+                    'apps_count': 'Number of Apps',
+                    'avg_peak_ccu_yesterday': 'Average peak CCU yesterday',
+                    'avg_2weeks_hs': 'Average hours played last 2 weeks',
+                    'avg_owners_max': 'Average Owners (Max)',
+                    'avg_price_usd': 'Average Current Price in USD',
+                    'avg_discount': 'Average Discount (%)'
+                }
+            )
+            fig.update_layout(yaxis_title=None)
+            fig.update_traces(
+                hovertemplate='<b>%{label}</b><br><br>' +
+                        format_string_value(x_label) + ': %{value}<br>',
+            )
+            c1.plotly_chart(fig)
         except Exception as e:
-            st.text(e)
+            c1.text(e)
         # Specific Language Analysis
         with st.container():
             # Filters
@@ -534,8 +750,8 @@ elif selected == "🈯 Languages":
             # Columns
             c1, c2 = st.columns([2, 2])
             # Subheaders
-            c1.subheader('🎭 Top 10 Genres for this Language')
-            c2.subheader('💰 Price distribution for this Language')
+            sh1 = c1.subheader('🎭 Top 10 Genres for this Language')
+            sh2 = c2.subheader('💰 Price distribution for this Language')
             # Only plot if a language is selected
             if selected_language:
                 # TOP 10 GENRES FOR THIS LANGUAGE
@@ -548,7 +764,7 @@ elif selected == "🈯 Languages":
                                 from apps a
                                 join apps_languages al on al.id_app = a.id_app
                                 join languages l on l.id_language = al.id_language 
-                                where l."language" = '{selected_language}'
+                                where l.normalized_language ='{selected_language}'
                             )
                             GROUP BY genres.genre
                             ORDER BY num_apps DESC
@@ -559,24 +775,46 @@ elif selected == "🈯 Languages":
                         text(query),
                         engine.connect()
                     )
-                    fig = px.pie(
+                    fig = px.bar(
                         df,
-                        values='num_apps',
-                        names='genre',
-                        color_discrete_sequence=plotly_color_palette
+                        x='genre',
+                        y='num_apps',
+                        orientation='v',
+                        color_discrete_sequence=plotly_color_palette,
+                        labels={
+                            'num_apps': 'Number of Apps',
+                            'genre': 'Genre'
+                        }
                     )
-                    fig.update_traces(textposition='inside', textinfo='percent+label')
-                    fig.update_layout(showlegend=False)
+                    fig.update_layout(
+                        xaxis_title=None,
+                        showlegend=False
+                    )
+                    # Customize text
+                    fig.update_traces(
+                        hovertemplate='<b>%{label}</b><br><br>' +
+                                'Number of Apps: %{value}<br>'
+                    )
                     c1.plotly_chart(fig, use_container_width=True)
+                    # Update subheader
+                    sh1.subheader(f'🎭 Top 10 Genres for {selected_language} Language')
                 except Exception as e:
                     c1.text(e)
-                # PRICE DISTRIBUTION FOR THIS LANGUAGE
+                # FREE VS PAID APPS FOR THIS GENRE
                 query = f"""
-                            SELECT a.price_usd
-                            FROM apps a
-                            INNER JOIN apps_languages al  ON a.id_app = al.id_app
-                            INNER JOIN languages l  ON al.id_language  = l.id_language 
-                            WHERE l."language"  = '{selected_language}'
+                            SELECT
+                                SUM(CASE WHEN a.price_usd = 0 THEN 1 ELSE 0 END) AS free_apps,
+                                SUM(CASE WHEN a.price_usd > 0 THEN 1 ELSE 0 END) AS paid_apps
+                            FROM
+                                apps AS a
+                            JOIN
+                                apps_languages AS al ON a.id_app = al.id_app
+                            JOIN
+                                languages AS l ON al.id_language = l.id_language
+                            WHERE
+                                l.normalized_language ='{selected_language}'
+                            GROUP BY
+                                l.normalized_language;
                             """
                 # Query the database and plot
                 try:
@@ -584,17 +822,28 @@ elif selected == "🈯 Languages":
                         text(query),
                         engine.connect()
                     )
-                    fig = px.histogram(
-                        df,
-                        nbins=20,
+                    # Pie chart
+                    labels = ['Free', 'Paid']
+                    values = df.values[0]
+                    fig = px.pie(
+                        values=values,
+                        names=labels,
+                        hole=.4,
                         color_discrete_sequence=plotly_color_palette
                     )
-                    fig.update_layout(
-                        xaxis_title="USD Price",
-                        yaxis_title="Frequency",
-                        showlegend=False
+                    # Customize text
+                    fig.update_traces(
+                        textposition='inside',
+                        textinfo='label+percent',
+                        textfont_size=20,
+                        hovertemplate='<b>%{label}</b><br><br>' +
+                                'Number of Apps: %{value}<br>' +
+                                'Percentage: %{percent:.2%}<br>'
                     )
+                    fig.update_layout(showlegend=False)
                     c2.plotly_chart(fig, use_container_width=True)
+                    # Update subheader
+                    sh2.subheader(f'💰 Free vs Paid apps for {selected_language} Language')
                 except Exception as e:
                     c2.text(e)
 # Tags Menu
