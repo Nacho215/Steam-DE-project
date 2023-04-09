@@ -748,10 +748,10 @@ elif selected == "🈯 Languages":
                 languages_list
             )
             # Columns
-            c1, c2 = st.columns([2, 2])
+            c1, c2 = st.columns(2)
             # Subheaders
             sh1 = c1.subheader('🎭 Top 10 Genres for this Language')
-            sh2 = c2.subheader('💰 Price distribution for this Language')
+            sh2 = c2.subheader('💰 Free vs Paid apps for this Language')
             # Only plot if a language is selected
             if selected_language:
                 # TOP 10 GENRES FOR THIS LANGUAGE
@@ -849,8 +849,23 @@ elif selected == "🈯 Languages":
 # Tags Menu
 elif selected == "🔖 Tags":
     # Title and description
-    st.header("🔖 Tags Analysis")
-    st.text("Here you can explore which are the most popular tags based on some filter, or maybe do some specific tag analysis.")
+    st.markdown(
+            """
+            ## 🔖 Tags Analysis
+            \nTags can be applied to a game by the developer, by players with non-limited accounts, and by Steam moderators.
+            \nThis allows the community to help mark up games with the terms, themes, and genres that help describe the game to others. (See more info: [here](https://partner.steamgames.com/doc/store/tags))
+            \nIn this section you can explore the **Most Popular Tags** based on different criterias.
+            You can also do a **specific tag** analysis.
+            """
+    )
+    with st.expander("**Glossary**", False):
+        st.markdown(
+            """
+            - **CCU**: Concurrent users
+            - **Owners**: Number of users who have the game in their library. This data comes in interval format, that's why you may see "min" or "max" in some filters.
+            - **Avg**: Average
+            """
+        )
 
     with st.container():
         # Columns
@@ -866,6 +881,11 @@ elif selected == "🔖 Tags":
             value=10,
             step=1
         )
+        criteria = c2.selectbox(
+            'Based on:',
+            options=['apps_count'] + FILTER_COLUMNS,
+            format_func=format_string_value
+        )
         price_interval = c2.slider(
             'Price in USD:',
             min_value=0,
@@ -876,36 +896,75 @@ elif selected == "🔖 Tags":
         # Where clause
         where_clause = 'WHERE'
         where_clause += F' a.price_usd BETWEEN {price_interval[0]} AND {price_interval[1]}'
+        # Change some query parts based on chosen criteria
+        select_column = ''
+        order_by = ''
+        match criteria:
+            case 'apps_count':
+                select_column = 'COUNT(a.id_app) as apps_count'
+                order_by = 'apps_count'
+            case 'peak_ccu_yesterday':
+                select_column = 'AVG(a.peak_CCU_yesterday) as avg_peak_ccu_yesterday'
+                order_by = 'avg_peak_ccu_yesterday'
+            case 'average_2weeks_hs':
+                select_column = 'AVG(a.average_2weeks_hs) as avg_2weeks_hs'
+                where_clause += ' AND a.average_2weeks_hs > 0'
+                order_by = 'avg_2weeks_hs'
+            case 'owners_max':
+                select_column = 'AVG(a.owners_max) as avg_owners_max'
+                order_by = 'avg_owners_max'
+            case 'price_usd':
+                select_column = 'AVG(a.price_usd) as avg_price_usd'
+                where_clause += ' AND a.price_usd > 0'
+                order_by = 'avg_price_usd'
+            case 'discount':
+                select_column = 'AVG(a.discount) as avg_discount'
+                order_by = 'avg_discount'
         # Query
         query = f"""
-                    SELECT t.tag, COUNT(at.id_app) AS app_count
+                    SELECT t.tag, {select_column}
                     FROM tags t
                     INNER JOIN apps_tags at ON t.id_tag = at.id_tag
                     JOIN apps a ON a.id_app = at.id_app
                     {where_clause}
                     GROUP BY t.tag
-                    ORDER BY app_count DESC
+                    ORDER BY {order_by} DESC
                     LIMIT {n_tags};"""
         # Query the database and plot
         try:
             df = pd.read_sql(
                 text(query),
                 engine.connect()
-            ).sort_values('app_count')
-            chart = px.bar(
+            )
+            df.sort_values(df.columns[1], inplace=True)
+            x_label = select_column.split()[-1]
+            fig = px.bar(
                 df,
-                x='app_count',
+                x=x_label,
                 y='tag',
                 orientation='h',
-                color_discrete_sequence=plotly_color_palette
+                color_discrete_sequence=plotly_color_palette,
+                labels={
+                    'apps_count': 'Number of Apps',
+                    'avg_peak_ccu_yesterday': 'Average peak CCU yesterday',
+                    'avg_2weeks_hs': 'Average hours played last 2 weeks',
+                    'avg_owners_max': 'Average Owners (Max)',
+                    'avg_price_usd': 'Average Current Price in USD',
+                    'avg_discount': 'Average Discount (%)'
+                }
             )
-            c1.plotly_chart(chart)
+            fig.update_layout(yaxis_title=None)
+            fig.update_traces(
+                hovertemplate='<b>%{label}</b><br><br>' +
+                        format_string_value(x_label) + ': %{value}<br>',
+            )
+            c1.plotly_chart(fig)
         except Exception as e:
             st.text(e)
         # Specific Language Analysis
         with st.container():
             # Filters
-            st.subheader('Specific Tag Analysis')
+            st.subheader('🎯 Specific Tag Analysis')
             selected_tag = st.selectbox(
                 'Tag:',
                 tags_list
@@ -913,67 +972,99 @@ elif selected == "🔖 Tags":
             # Columns
             c1, c2 = st.columns(2)
             # Subheaders
-            c1.subheader('🎭 Top 10 Genres for this Tag')
-            c2.subheader('💰 Price distribution for this Tag')
+            sh1 = c1.subheader('🎭 Top 10 Genres for this Tag')
+            sh2 = c2.subheader('💰 Price distribution for this Tag')
             # Only plot if a tag is selected
             if selected_tag:
                 # TOP 10 GENRES FOR THIS TAG
                 query = f"""
                             SELECT genres.genre, COUNT(*) as num_apps
-                            FROM apps_tags
-                            INNER JOIN apps_genres ON apps_tags.id_app = apps_genres.id_app
-                            INNER JOIN genres ON apps_genres.id_genre = genres.id_genre
-                            WHERE apps_tags.id_app in (
-                                select id_app
-                                from apps_tags "at"
-                                join tags t on t.id_tag = "at".id_tag
-                                where t.tag = '{selected_tag}'
+                            from genres
+                            JOIN apps_genres ON genres.id_genre = apps_genres.id_genre
+                            where apps_genres.id_app in (
+                                select at.id_app
+                                from apps a
+                                join apps_tags at on at.id_app = a.id_app
+                                join tags t on t.id_tag = at.id_tag
+                                where t.tag ='{selected_tag}'
                             )
                             GROUP BY genres.genre
-                            ORDER BY num_apps desc
-                            limit 10;
-                            """
+                            ORDER BY num_apps DESC
+                            LIMIT 10;"""
                 # Query the database and plot
                 try:
                     df = pd.read_sql(
                         text(query),
                         engine.connect()
                     )
-                    fig = px.pie(
+                    fig = px.bar(
                         df,
-                        values='num_apps',
-                        names='genre',
-                        color_discrete_sequence=plotly_color_palette
-                    )
-                    fig.update_traces(textposition='inside', textinfo='percent+label')
-                    fig.update_layout(showlegend=False)
-                    c1.plotly_chart(fig, use_container_width=True)
-                except Exception as e:
-                    c1.text(e)
-                # PRICE DISTRIBUTION FOR THIS TAG
-                query = f"""
-                            SELECT apps.price_usd
-                            FROM apps
-                            INNER JOIN apps_tags ON apps.id_app = apps_tags.id_app
-                            INNER JOIN tags ON apps_tags.id_tag = tags.id_tag
-                            WHERE tags.tag = '{selected_tag}'
-                            """
-                # Query the database and plot
-                try:
-                    df = pd.read_sql(
-                        text(query),
-                        engine.connect()
-                    )
-                    fig = px.histogram(
-                        df,
-                        nbins=20,
-                        color_discrete_sequence=plotly_color_palette
+                        x='genre',
+                        y='num_apps',
+                        orientation='v',
+                        color_discrete_sequence=plotly_color_palette,
+                        labels={
+                            'num_apps': 'Number of Apps',
+                            'genre': 'Genre'
+                        }
                     )
                     fig.update_layout(
-                        xaxis_title="USD Price",
-                        yaxis_title="Frequency",
+                        xaxis_title=None,
                         showlegend=False
                     )
+                    # Customize text
+                    fig.update_traces(
+                        hovertemplate='<b>%{label}</b><br><br>' +
+                                'Number of Apps: %{value}<br>'
+                    )
+                    c1.plotly_chart(fig, use_container_width=True)
+                    # Update subheader
+                    sh1.subheader(f'🎭 Top 10 Genres for {selected_tag} tag')
+                except Exception as e:
+                    c1.text(e)
+                # FREE VS PAID APPS FOR THIS TAG
+                query = f"""
+                            SELECT
+                                SUM(CASE WHEN a.price_usd = 0 THEN 1 ELSE 0 END) AS free_apps,
+                                SUM(CASE WHEN a.price_usd > 0 THEN 1 ELSE 0 END) AS paid_apps
+                            FROM
+                                apps AS a
+                            JOIN
+                                apps_tags AS at ON a.id_app = at.id_app
+                            JOIN
+                                tags AS t ON at.id_tag = t.id_tag
+                            WHERE
+                                t.tag ='{selected_tag}'
+                            GROUP BY
+                                t.tag;
+                            """
+                # Query the database and plot
+                try:
+                    df = pd.read_sql(
+                        text(query),
+                        engine.connect()
+                    )
+                    # Pie chart
+                    labels = ['Free', 'Paid']
+                    values = df.values[0]
+                    fig = px.pie(
+                        values=values,
+                        names=labels,
+                        hole=.4,
+                        color_discrete_sequence=plotly_color_palette
+                    )
+                    # Customize text
+                    fig.update_traces(
+                        textposition='inside',
+                        textinfo='label+percent',
+                        textfont_size=20,
+                        hovertemplate='<b>%{label}</b><br><br>' +
+                                'Number of Apps: %{value}<br>' +
+                                'Percentage: %{percent:.2%}<br>'
+                    )
+                    fig.update_layout(showlegend=False)
                     c2.plotly_chart(fig, use_container_width=True)
+                    # Update subheader
+                    sh2.subheader(f'💰 Free vs Paid apps for {selected_tag} Tag')
                 except Exception as e:
                     c2.text(e)
