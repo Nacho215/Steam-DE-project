@@ -1,9 +1,12 @@
 import logging
 import logging.config
 import os
+import sys
 import pandas as pd
 from sqlalchemy import Engine, text, create_engine
 from sqlalchemy.exc import ProgrammingError
+# Add path in order to access libs folder
+sys.path.append(os.path.dirname(__file__))
 from settings import settings
 
 # Engine is created to be called as modules from other scripts
@@ -63,6 +66,7 @@ class DB:
         or create them otherwise.
 
         Args:
+            tables (list): List of tables names to create/truncate.
             engine (Engine, optional): Database connection engine.
                 Defaults to default_engine.
 
@@ -82,6 +86,7 @@ class DB:
         try:
             with engine.connect() as connection:
                 connection.execute(text(query))
+                connection.commit()
         except ProgrammingError as e:
             # This error means tables does not exists yet,
             # so we need to create them first

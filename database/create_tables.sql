@@ -25,7 +25,8 @@ CREATE TABLE genres (
 -- public.languages definition
 CREATE TABLE languages (
 	id_language int8 NOT NULL,
-	"language" text NULL
+	"language" text NULL,
+	"normalized_language" text NULL
 );
 
 -- public.tags definition

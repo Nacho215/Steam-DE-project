@@ -16,6 +16,7 @@ logging.config.fileConfig('config_logs.conf')
 logger = logging.getLogger('ETL')
 
 # Table names
+# table_names = []
 table_names = [
     'genres',
     'apps_languages',
@@ -24,6 +25,14 @@ table_names = [
     'tags',
     'apps',
     'apps_genres'
+]
+
+NORMALIZED_LANGUAGES = [
+    'English', 'Spanish', 'Portuguese', 'French', 'German', 'Arabic', 'Bulgarian',
+    'Chinese', 'Czech', 'Danish', 'Dutch', 'Finnish', 'Greek', 'Hungarian',
+    'Italian', 'Japanese', 'Korean', 'Norwegian', 'Polish',
+    'Romanian', 'Russian', 'Swedish', 'Thai', 'Turkish',
+    'Ukrainian', 'Vietnamese'
 ]
 
 
@@ -86,12 +95,12 @@ class SteamETL:
         Returns:
             bool: True if transformed sucessfully. False otherwise.
         """
-        download_result = self.download_from_s3(
-            output_csv_path=input_csv_path,
-            s3_info=s3_info
-        )
-        if not download_result:
-            return False
+        # download_result = self.download_from_s3(
+        #     output_csv_path=input_csv_path,
+        #     s3_info=s3_info
+        # )
+        # if not download_result:
+        #     return False
 
         # Read data from csv
         df_apps = pd.read_csv(input_csv_path)
@@ -165,6 +174,11 @@ class SteamETL:
             new_table_id_column='id_language',
             new_table_list_column='language'
         )
+        # Create "normalized_language" column from "languages" tables
+        # in order to get rid of variations like "Spanish - Latin America"
+        df_languages["normalized_language"] = df_languages["language"].apply(
+            lambda x: self.normalize_language(x, NORMALIZED_LANGUAGES)
+        )
 
         # Transform tags column into a list column
         df_apps['tags'] = df_apps['tags'].apply(
@@ -223,13 +237,13 @@ class SteamETL:
         Returns:
             bool: True if loaded successfully. False otherwise.
         """
-        # # Upload transformed csv files to S3 bucket
-        # upload_result = self.upload_transformed_data_to_s3(
-        #     dir_csv_files=dir_csv_files,
-        #     s3_info=s3_info
-        # )
-        # if not upload_result:
-        #     return False
+        # Upload transformed csv files to S3 bucket
+        upload_result = self.upload_transformed_data_to_s3(
+            dir_csv_files=dir_csv_files,
+            s3_info=s3_info
+        )
+        if not upload_result:
+            return False
         # Prepare tables (truncate or create)
         prepare_result = DB.prepare_tables(
             tables=table_names
@@ -483,7 +497,7 @@ class SteamETL:
             list: A list of clean languages.
         """
         # Chars to remove
-        invalid_chars = ['strong', 'amp', '*', '&', 'lt;', 'gt;', ';', r'\/', '/', 'br']
+        invalid_chars = ['strong', 'amp', '*', '&', 'lt;', 'gt;', ';', r'\/', '/', 'br', '[b]']
 
         # Make column a list
         languages = col.split(',')
@@ -491,9 +505,9 @@ class SteamETL:
             # Remove invalid chars
             for char in invalid_chars:
                 lang = lang.replace(char, '')
-            # Replace \r for ' - ' for languages like
+            # Replace \r for ' ' for languages like
             # 'English\nInterface: English\nFull Audio: Flemish\nSubtitles'
-            lang = lang.replace('\r\n', ' - ')
+            lang = lang.replace('\r\n', ' ')
             # Remove whitespaces
             lang = lang.strip()
             # Reflect changes in the list
@@ -505,6 +519,29 @@ class SteamETL:
                 languages.remove(lang)
 
         return languages
+
+    def normalize_language(
+            self,
+            language: str,
+            normalized_languages: list
+    ) -> str:
+        """
+        Takes a language and returns a normalized version of it, based
+        on a given list of normalized languages.
+        E.g: "Spanish - Latin America" would be transformed to "Spanish"
+        If it can't normalize it, then return original language.
+
+        Args:
+            language (str): language to normalize
+            normalized_languages (list): list of normalized languages
+
+        Returns:
+            str: normalized language
+        """
+        for lang in normalized_languages:
+            if language.lower().find(lang.lower()) != -1:
+                return lang
+        return language
 
     def transform_tags_column(
         self,
@@ -526,6 +563,7 @@ class SteamETL:
         col = col.replace("0'", "0")
         # Remove quotes from abbreviations (Shoot 'Em Up)
         col = col.replace("'Em Up", " Em Up")
+        col = col.replace("'em up", " Em Up")
         # Swap ' for " if JSON is in a bad format
         col = col.replace("{'", '{"')
         col = col.replace("':", '":')
