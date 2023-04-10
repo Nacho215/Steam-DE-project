@@ -9,7 +9,7 @@ In a few words:
 - Finally, it query that database to generate graphs and let the user explore insights in a webpage using [Streamlit](https://streamlit.io/).
 
 # 🔀 Architecture diagram
-![architecture_diagram](https://raw.githubusercontent.com/Nacho215/Steam-DE-project/main/architecture_diagram.jpg?token=GHSAT0AAAAAABZWLQ5CA22AASCITENGZDUEZBUOBIQ)
+![architecture_diagram](https://github.com/Nacho215/Steam-DE-project/blob/main/architecture_diagram.jpg)
 
 # 📁 File structure
 ## Folders
