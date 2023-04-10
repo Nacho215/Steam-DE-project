@@ -247,6 +247,21 @@ def format_string_value(string: str) -> str:
             return string.capitalize()
 
 
+def show_glossary():
+    """
+    Show a simple glossary explaining most used words.
+    """
+    with st.expander("**Glossary**", False):
+        st.markdown(
+            """
+            - **App**: Application. 'App' is used and not 'Game' because Steam have a lot of non-games applications.
+            - **CCU**: Concurrent users
+            - **Owners**: Number of users who have the app in their library. This data comes in interval format, that's why you may see "min" or "max" in some filters.
+            - **Avg**: Average
+            """
+        )
+
+
 # Load preview tables
 tables_info = get_preview_tables(
     engine=engine,
@@ -259,13 +274,6 @@ tags_list = get_unique_values_list(
     table='tags',
 )
 # Load languages list
-# languages_list = [
-#     'Arabic', 'Bulgarian', 'Chinese', 'Czech', 'Danish', 'Dutch',
-#     'English', 'Finnish', 'French', 'German', 'Greek', 'Hungarian',
-#     'Italian', 'Japanese', 'Korean', 'Norwegian', 'Polish', 'Portuguese',
-#     'Romanian', 'Russian', 'Spanish', 'Swedish', 'Thai', 'Turkish',
-#     'Ukrainian', 'Vietnamese'
-# ]
 languages_list = get_unique_values_list(
     engine=engine,
     column='normalized_language',
@@ -284,13 +292,13 @@ last_update_message = get_last_update_message(engine, 'apps')
 
 # Page config
 st.set_page_config(
-    page_title='Steam Games Data',
+    page_title='Steam Apps Data',
     page_icon='video_game',
     layout='wide'
 )
 # Title
 st.markdown(
-    "<h1 style='text-align: center;'>🎮 Steam Games Data</h1>",
+    "<h1 style='text-align: center;'>🎮 Steam Apps Data</h1>",
     unsafe_allow_html=True
 )
 # Hide Right menu and Footer
@@ -311,11 +319,11 @@ with st.sidebar:
         menu_title="Main Menu",
         menu_icon='house',
         options=[
-            "🔍 Find your game!",
+            "🔍 Find your App!",
             "🎭 Genres",
             "🈯 Languages",
             "🔖 Tags",
-            "🔨 Tables structure"
+            "🔨 Database Structure"
         ],
         default_index=0,
         icons=[],
@@ -347,27 +355,21 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-# Trending Menu
-if selected == "🔍 Find your game!":
+# Find your App! Menu
+if selected == "🔍 Find your App!":
     # Title and description
     st.markdown(
             """
-            ## 🔍 Find your game!
-            \nIn this section, you can search for your ideal game! You may filter for:
+            ## 🔍 Find your App!
+            \nIn this section, you can search for your ideal App! You may filter for:
             \n- a **genre** you love
             \n- a **developer** you are fan of
             \n- a specific **language**
             \n- or maybe just a nice single player game with **discount**
             """
     )
-    with st.expander("**Glossary**", False):
-        st.markdown(
-            """
-            - **CCU**: Concurrent users
-            - **Owners**: Number of users who have the game in their library. This data comes in interval format, that's why you may see "min" or "max" in some filters.
-            - **Avg**: Average
-            """
-        )
+    # Show glossary
+    show_glossary()
 
     with st.container():
         # Filters
@@ -375,7 +377,7 @@ if selected == "🔍 Find your game!":
         # First row
         c1, c2 = st.columns(2)
         n_games = c1.slider(
-            'Top N° Games:',
+            'Top N° Apps:',
             min_value=1,
             max_value=5000,
             value=2500,
@@ -401,7 +403,7 @@ if selected == "🔍 Find your game!":
             tags_list
         )
         # Subheader
-        st.subheader("📄 Filtered games")
+        st.subheader("📄 Filtered Apps")
         # Where clause
         where_clause = ''
         if selected_genres or selected_languages or selected_tags:
@@ -481,14 +483,9 @@ elif selected == "🎭 Genres":
         In addition, you can do a **specific genre** analysis.
         """
     )
-    with st.expander("**Glossary**", False):
-        st.markdown(
-            """
-            - **CCU**: Concurrent users
-            - **Owners**: Number of users who have the game in their library. This data comes in interval format, that's why you may see "min" or "max" in some filters.
-            - **Avg**: Average
-            """
-        )
+    # Show glossary
+    show_glossary()
+
     with st.container():
         # Columns
         c1, c2 = st.columns([3, 1])
@@ -699,18 +696,13 @@ elif selected == "🈯 Languages":
     st.markdown(
         """
         ## 🈯 Languages Analysis
-        In this section you can see in which **languages** are available the most popular games.
+        In this section you can see in which **languages** are available the most popular Apps.
         In addition, you can do a **specific language** analysis.
         """
     )
-    with st.expander("**Glossary**", False):
-        st.markdown(
-            """
-            - **CCU**: Concurrent users
-            - **Owners**: Number of users who have the game in their library. This data comes in interval format, that's why you may see "min" or "max" in some filters.
-            - **Avg**: Average
-            """
-        )
+    # Show glossary
+    show_glossary()
+
     with st.container():
         # Columns
         c1, c2 = st.columns([3, 1])
@@ -919,20 +911,14 @@ elif selected == "🔖 Tags":
     st.markdown(
             """
             ## 🔖 Tags Analysis
-            \nTags can be applied to a game by the developer, by players with non-limited accounts, and by Steam moderators.
-            \nThis allows the community to help mark up games with the terms, themes, and genres that help describe the game to others. (See more info: [here](https://partner.steamgames.com/doc/store/tags))
+            \nTags can be applied to a app by the developer, by players with non-limited accounts, and by Steam moderators.
+            \nThis allows the community to help mark up Apps with the terms, themes, and genres that help describe the app to others. (See more info: [here](https://partner.steamgames.com/doc/store/tags))
             \nIn this section you can explore the **Most Popular Tags** based on different criterias.
             You can also do a **specific tag** analysis.
             """
     )
-    with st.expander("**Glossary**", False):
-        st.markdown(
-            """
-            - **CCU**: Concurrent users
-            - **Owners**: Number of users who have the game in their library. This data comes in interval format, that's why you may see "min" or "max" in some filters.
-            - **Avg**: Average
-            """
-        )
+    # Show glossary
+    show_glossary()
 
     with st.container():
         # Columns
@@ -1137,7 +1123,7 @@ elif selected == "🔖 Tags":
                 except Exception as e:
                     c2.text(e)
 # Tables structure Menu
-elif selected == "🔨 Tables structure":
+elif selected == "🔨 Database Structure":
     # Title and description
     st.markdown(
         """
