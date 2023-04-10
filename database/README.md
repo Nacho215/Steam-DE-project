@@ -7,7 +7,7 @@ In this folder is located the SQL script used to create the tables and its contr
 
 # 🔧 Tables structure
 This ER diagram shows diferent tables in the database, and relationship betweeen them:
-![ER_diagram](https://raw.githubusercontent.com/Nacho215/Steam-DE-project/main/database/ER_diagram.png?token=GHSAT0AAAAAABZWLQ5CYIDJQT4B6W3NTV7SZBNYFBA)
+![ER_diagram](https://github.com/Nacho215/Steam-DE-project/blob/main/database/ER_diagram.png)
 
 You can view this diagram here: [Interactive ER diagram](https://dbdiagram.io/d/642db0f85758ac5f172708ab)
 
