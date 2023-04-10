@@ -1,5 +1,7 @@
 import os
 import sys
+from tzlocal import get_localzone
+from datetime import datetime
 import pandas as pd
 import plotly.express as px
 from pandas.api.types import (is_categorical_dtype, is_datetime64_any_dtype,
@@ -18,7 +20,7 @@ FILTER_COLUMNS = ['peak_ccu_yesterday', 'average_2weeks_hs', 'owners_max', 'pric
 
 # Methods
 def get_preview_tables(
-    engine: str,
+    engine,
     sample_size: int
 ) -> dict:
     """
@@ -80,6 +82,43 @@ def get_unique_values_list(
         engine.connect()
     )
     return [x[0] for x in df_unique_values.values]
+
+
+def get_last_update_message(
+        engine,
+        table_name: str
+) -> str:
+    """
+    Get the timestamps of the last update made on given table.
+
+    Args:
+        engine (SqlAlchemy.Engine): Engine used to connect with database.
+        table_name (str): name of the table to check for its last update
+
+    Returns:
+        str: timestamp in string format
+    """
+    # Get timestamp
+    df_result = pd.read_sql(
+        text(
+            f"""
+            SELECT pg_xact_commit_timestamp(xmin) AS last_update_timestamp
+            FROM {table_name}
+            ORDER BY last_update_timestamp
+            LIMIT 1;"""
+        ),
+        engine.connect()
+    )
+    # Get user timezone
+    user_tz = get_localzone()
+    # Convert to datetime object
+    last_update_time = datetime.strptime(
+        str(df_result.iloc[0][0]),
+        '%Y-%m-%d %H:%M:%S.%f%z'
+    ).astimezone(user_tz)
+    # Get time elapsed
+    time_elapsed = datetime.now(user_tz) - last_update_time
+    return f'Last database update: {time_elapsed.days}d {time_elapsed.seconds//3600}h {(time_elapsed.seconds//60)%60}m {time_elapsed.seconds%60}s ago'
 
 
 def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -240,19 +279,34 @@ genres_list = get_unique_values_list(
 )
 
 
+# Get last update message
+last_update_message = get_last_update_message(engine, 'apps')
+
 # Page config
 st.set_page_config(
     page_title='Steam Games Data',
     page_icon='video_game',
     layout='wide'
 )
+# Title
 st.markdown(
     "<h1 style='text-align: center;'>🎮 Steam Games Data</h1>",
     unsafe_allow_html=True
 )
+# Hide Right menu and Footer
+st.markdown(
+    """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>"""
+    , unsafe_allow_html=True
+)
+
 
 # Navigation Menu
 with st.sidebar:
+    # Option Menu
     selected = option_menu(
         menu_title="Main Menu",
         menu_icon='house',
@@ -271,6 +325,26 @@ with st.sidebar:
             "nav-link": {"font-size": "16px", "text-align": "left", "margin": "0px", "--hover-color": "#0E1117"},
             "nav-link-selected": {"background-color": "#306f34"},
         }
+    )
+    # Last database update information
+    st.divider()
+    st.markdown(
+        f"""
+        <div class="footer">
+        <p style='text-align: center;'>{last_update_message}</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    # Developer information
+    st.divider()
+    st.markdown(
+        """
+        <div class="footer">
+        <p style='text-align: center;'>Made with 💚 by <a href="https://github.com/Nacho215/" target="_blank">Nacho 215</a></p>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
 # Trending Menu
