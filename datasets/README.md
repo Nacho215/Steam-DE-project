@@ -1,4 +1,4 @@
-# 📚 Datasets folder
+# 📚 Datasets
 When executed, the script will store raw and clean datasets in this folder into ***raw*** and ***clean*** folders:
 
 # 📂 Raw folder

@@ -1,4 +1,4 @@
-# 📑 Logs folder
+# 📑 Logs
 When executed, the script will store a ***logs.log*** file in this folder.
 
 The way it logs it can be configured through ***config_logs.conf*** file in project's root.

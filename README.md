@@ -14,14 +14,18 @@ In a few words:
 # 📁 File structure
 ## Folders
 - ***.streamlit***: it contains a configuration file for the streamlit page.
+- ***assets***: diagrams used in README files.
+- ***database***: it contains a SQL script used to create database tables.
+- ***datasets***: folder where raw and clean data will be stored.
 - ***libs***: Python libraries (modules) used in the project.
+- ***logs***: folder where project logs will be stored.
 - ***src***: contains source files (Python scripts).
 - ***streamlit***: it contains the Streamlit application script.
 ## Files
+- ***.env.template*** template of the .env file that you need to fill in order to run this script.
 - ***.gitignore***: list with intentionally untracked files.
 - ***config_logs.conf***: logger configuration file.
 - ***requirements.txt***: dependencies needed for this project.
-- ***.env.template*** template of the .env file that you need to fill in order to run this script.
 
 # 🔨 Setup
 ## Virtual enviroment
@@ -47,3 +51,10 @@ Now, you can run main script:
 cd src
 python main.py
 ```
+# 🔍 Index
+Here you can navigate to each section of the project, and understand how it works:
+- [💾 Database](https://github.com/Nacho215/Steam-DE-project/tree/main/database)
+- [📚 Datasets](https://github.com/Nacho215/Steam-DE-project/tree/main/datasets)
+- [⚙ Libraries](https://github.com/Nacho215/Steam-DE-project/tree/main/libs)
+- [📑 Logs](https://github.com/Nacho215/Steam-DE-project/tree/main/logs)
+- [📊 Streamlit](https://github.com/Nacho215/Steam-DE-project/tree/main/streamlit)
