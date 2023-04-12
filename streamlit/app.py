@@ -1127,7 +1127,7 @@ elif selected == "🔨 Database Structure":
     # Title and description
     st.markdown(
         """
-        ## 🔨 Tables structure
+        ## 🔨 Database Structure
         \nThese are the database tables structure.
         \nMax rows per table are capped at 100 for better performance.
         """
