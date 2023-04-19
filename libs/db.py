@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(__file__))
 from settings import settings
 
 # Engine is created to be called as modules from other scripts
-default_engine = create_engine(settings.DATABASE_URL)
+default_engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 
 # Logging config
 # logging.config.fileConfig('config_logs.conf')
